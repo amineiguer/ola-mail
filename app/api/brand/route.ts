@@ -42,39 +42,39 @@ export async function GET() {
 
     // Extract logo
     const logos: Array<{ url?: string }> = board.logos ?? [];
-    const logo = logos[0]?.url ?? board.logo ?? board.logoUrl ?? null;
+    const logo = logos[0]?.url ?? board.logo ?? board.logoUrl ?? undefined;
 
     // Extract colors by label
     const colors: Array<{ hex?: string; label?: string }> = board.colors ?? [];
     const findColor = (keyword: string) =>
       colors.find((c) => c.label?.toLowerCase().includes(keyword))?.hex;
 
-    const primaryColor = findColor("dark")  ?? colors[2]?.hex ?? null;
-    const accentColor  = findColor("light") ?? colors[1]?.hex ?? null;
-    const skyColor     = findColor("sky")   ?? colors[0]?.hex ?? null;
+    const primaryColor = findColor("dark")  ?? colors[2]?.hex ?? undefined;
+    const accentColor  = findColor("light") ?? colors[1]?.hex ?? undefined;
+    const skyColor     = findColor("sky")   ?? colors[0]?.hex ?? undefined;
 
     // Extract font
     const fonts: Array<{ font?: string }> = board.fonts ?? [];
-    const primaryFont = fonts[0]?.font ?? null;
+    const primaryFont = fonts[0]?.font ?? undefined;
 
     const data: BrandBoard = {
-      name:         board.name         ?? board.agentName    ?? null,
-      title:        board.title        ?? board.agentTitle   ?? null,
-      phone:        board.phone        ?? board.agentPhone   ?? null,
-      email:        board.email        ?? board.agentEmail   ?? null,
+      name:         board.name         ?? board.agentName     ?? undefined,
+      title:        board.title        ?? board.agentTitle    ?? undefined,
+      phone:        board.phone        ?? board.agentPhone    ?? undefined,
+      email:        board.email        ?? board.agentEmail    ?? undefined,
       logo,
       primaryColor,
       accentColor,
       skyColor,
       primaryFont,
-      website:      board.website      ?? board.websiteUrl   ?? null,
-      brokerage:    board.brokerage    ?? board.brokerageName ?? null,
-      address:      board.address      ?? null,
-      tagline:      board.tagline      ?? board.slogan       ?? null,
+      website:      board.website      ?? board.websiteUrl    ?? undefined,
+      brokerage:    board.brokerage    ?? board.brokerageName ?? undefined,
+      address:      board.address      ?? undefined,
+      tagline:      board.tagline      ?? board.slogan        ?? undefined,
     };
 
-    // Strip null values before returning
-    const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null));
+    // Strip undefined values before returning
+    const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
     return NextResponse.json(clean);
   } catch (error) {
     console.error("Erreur récupération brandboard:", error);
