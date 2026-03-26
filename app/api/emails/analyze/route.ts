@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const tokens = await getTokens();
+  const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
+  const tokens = await getTokens(ghlUserId);
   if (!tokens || !tokens.access_token) {
     return NextResponse.json(
       { error: "Non authentifié. Veuillez connecter Gmail." },

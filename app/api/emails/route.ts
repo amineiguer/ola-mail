@@ -69,7 +69,8 @@ export async function GET(request: NextRequest) {
   const labelId = searchParams.get("label") || undefined;
   const daysBack = searchParams.get("days") ? Number(searchParams.get("days")) : 30;
 
-  const tokens = await getTokens();
+  const ghlUserId = request.headers.get("x-ghl-user-id") ?? searchParams.get("userId") ?? undefined;
+  const tokens = await getTokens(ghlUserId);
   if (!tokens || !tokens.access_token) {
     return NextResponse.json(
       { error: "Non authentifié. Veuillez connecter Gmail." },

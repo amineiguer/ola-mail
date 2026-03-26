@@ -21,6 +21,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(redirectUrl.toString());
   }
 
+  // Extract GHL user ID from state param
+  const state = searchParams.get("state");
+  const ghlUserId = state ? decodeURIComponent(state) : undefined;
+
   try {
     const oauth2Client = getOAuthClient();
     const { tokens } = await oauth2Client.getToken(code);
@@ -29,13 +33,16 @@ export async function GET(request: NextRequest) {
       throw new Error("Aucun token d'accès reçu");
     }
 
-    await saveTokens({
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token ?? undefined,
-      expiry_date: tokens.expiry_date ?? undefined,
-      token_type: tokens.token_type ?? undefined,
-      scope: tokens.scope ?? undefined,
-    });
+    await saveTokens(
+      {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token ?? undefined,
+        expiry_date: tokens.expiry_date ?? undefined,
+        token_type: tokens.token_type ?? undefined,
+        scope: tokens.scope ?? undefined,
+      },
+      ghlUserId
+    );
 
     const redirectUrl = new URL("/auth/callback", baseUrl);
     redirectUrl.searchParams.set("success", "true");

@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Champs requis: to, subject, body" }, { status: 400 });
     }
 
-    const tokens = await getTokens();
+    const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
+    const tokens = await getTokens(ghlUserId);
     if (!tokens?.access_token) {
       return NextResponse.json({ error: "Non connecté à Gmail" }, { status: 401 });
     }

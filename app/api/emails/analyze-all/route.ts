@@ -4,7 +4,8 @@ import { analyzeEmail } from "@/lib/anthropic";
 import { getTokens, getEmailsCache, saveEmailsCache } from "@/lib/storage";
 
 export async function POST(request: Request) {
-  const tokens = await getTokens();
+  const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
+  const tokens = await getTokens(ghlUserId);
   if (!tokens?.access_token) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }

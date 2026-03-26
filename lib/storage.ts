@@ -126,42 +126,60 @@ function writeJsonFile<T>(filePath: string, data: T): void {
   }
 }
 
-// Token management — uses cookies (works on Vercel) with file fallback (local dev)
-export async function saveTokens(tokens: StoredTokens): Promise<void> {
-  try {
-    const { cookies } = await import("next/headers");
-    cookies().set("gmail_tokens", JSON.stringify(tokens), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
-  } catch {
-    // Fallback: file system (local dev without cookie context)
-    writeJsonFile(TOKENS_FILE, tokens);
+// Token management — Supabase (production) with file fallback (local dev)
+export async function saveTokens(
+  tokens: StoredTokens,
+  ghlUserId?: string
+): Promise<void> {
+  if (ghlUserId && process.env.SUPABASE_URL) {
+    const { supabase } = await import("@/lib/supabase");
+    await supabase.from("gmail_google_tokens").upsert(
+      {
+        ghl_user_id: ghlUserId,
+        google_access_token: tokens.access_token,
+        google_refresh_token: tokens.refresh_token ?? null,
+        google_token_expiry: tokens.expiry_date ?? null,
+        google_scopes: tokens.scope ?? null,
+        token_type: tokens.token_type ?? "Bearer",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "ghl_user_id" }
+    );
+    return;
   }
+  writeJsonFile(TOKENS_FILE, tokens);
 }
 
-export async function getTokens(): Promise<StoredTokens | null> {
-  // Try cookies first
-  try {
-    const { cookies } = await import("next/headers");
-    const raw = cookies().get("gmail_tokens")?.value;
-    if (raw) return JSON.parse(raw) as StoredTokens;
-  } catch {}
-  // Fallback: file system
+export async function getTokens(ghlUserId?: string): Promise<StoredTokens | null> {
+  if (ghlUserId && process.env.SUPABASE_URL) {
+    const { supabase } = await import("@/lib/supabase");
+    const { data } = await supabase
+      .from("gmail_google_tokens")
+      .select("google_access_token, google_refresh_token, google_token_expiry, google_scopes, token_type")
+      .eq("ghl_user_id", ghlUserId)
+      .single();
+    if (!data?.google_access_token) return null;
+    return {
+      access_token: data.google_access_token,
+      refresh_token: data.google_refresh_token ?? undefined,
+      expiry_date: data.google_token_expiry ?? undefined,
+      scope: data.google_scopes ?? undefined,
+      token_type: data.token_type ?? undefined,
+    };
+  }
   return readJsonFile<StoredTokens>(TOKENS_FILE);
 }
 
-export async function clearTokens(): Promise<void> {
-  try {
-    const { cookies } = await import("next/headers");
-    cookies().delete("gmail_tokens");
-  } catch {}
-  if (fs.existsSync(TOKENS_FILE)) {
-    fs.unlinkSync(TOKENS_FILE);
+export async function clearTokens(ghlUserId?: string): Promise<void> {
+  if (ghlUserId && process.env.SUPABASE_URL) {
+    const { supabase } = await import("@/lib/supabase");
+    await supabase
+      .from("gmail_google_tokens")
+      .update({ google_access_token: null, google_refresh_token: null })
+      .eq("ghl_user_id", ghlUserId);
+    return;
   }
+  if (fs.existsSync(TOKENS_FILE)) fs.unlinkSync(TOKENS_FILE);
 }
 
 // Email cache management

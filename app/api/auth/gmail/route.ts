@@ -8,11 +8,14 @@ export async function GET(request: NextRequest) {
 
   // Status check — used by dashboard on load
   if (action === "status") {
-    const tokens = await getTokens();
+    const ghlUserId = request.headers.get("x-ghl-user-id") ?? request.nextUrl.searchParams.get("userId") ?? undefined;
+    const tokens = await getTokens(ghlUserId);
     return NextResponse.json({ connected: !!(tokens?.access_token) });
   }
 
   // Initiate OAuth flow
+  const ghlUserId = request.nextUrl.searchParams.get("userId") ?? undefined;
+
   try {
     const oauth2Client = getOAuthClient();
     const authUrl = oauth2Client.generateAuthUrl({
@@ -23,6 +26,7 @@ export async function GET(request: NextRequest) {
         "https://www.googleapis.com/auth/gmail.compose",
       ],
       prompt: "consent",
+      state: ghlUserId ? encodeURIComponent(ghlUserId) : undefined,
     });
     return NextResponse.redirect(authUrl);
   } catch (error) {

@@ -291,8 +291,9 @@ export default function DashboardPage() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.user) {
+          const userId = data.user.id ?? "";
           setGhlUser({
-            id: data.user.id ?? "",
+            id: userId,
             name: data.user.name,
             email: data.user.email,
             role: data.user.role,
@@ -301,6 +302,23 @@ export default function DashboardPage() {
             setGhlLocation({ id: data.user.activeLocation });
           }
           setGhlConnected(true);
+
+          // Inject userId header into all /api/ fetch calls for this session
+          if (userId) {
+            sessionStorage.setItem("ghl-user-id", userId);
+            const origFetch = window.fetch.bind(window);
+            window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+              const url = typeof input === "string" ? input
+                : input instanceof URL ? input.href
+                : (input as Request).url;
+              if (url.startsWith("/api/")) {
+                const headers = new Headers(init?.headers);
+                headers.set("x-ghl-user-id", userId);
+                return origFetch(input, { ...init, headers });
+              }
+              return origFetch(input, init);
+            };
+          }
         }
       } catch { /* silent */ }
     };
@@ -428,27 +446,31 @@ export default function DashboardPage() {
     } catch { /* silent */ }
   }, []);
 
+  const initializeGmail = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/gmail?action=status");
+      if (!res.ok) return;
+      const { connected } = await res.json();
+      if (!connected) return;
+      setIsConnected(true);
+      const savedDays = Number(localStorage.getItem("ola-sync-days") ?? "30");
+      setSyncDays(savedDays);
+      fetchLabels();
+      fetchTags();
+      fetchRules();
+      fetchEmails(undefined, false, savedDays);
+    } catch { /* silent */ }
+  }, [fetchLabels, fetchTags, fetchRules, fetchEmails]);
+
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/gmail?action=status");
-        if (!res.ok) { router.push("/"); return; }
-        const { connected } = await res.json();
-        if (!connected) { router.push("/"); return; }
-        setIsConnected(true);
-        const savedDays = Number(localStorage.getItem("ola-sync-days") ?? "30");
-        setSyncDays(savedDays);
-        fetchLabels();
-        fetchTags();
-        fetchRules();
-        fetchEmails(undefined, false, savedDays);
-      } catch {
-        router.push("/");
-      } finally {
-        setCheckingAuth(false);
-      }
-    })();
-  }, [router, fetchLabels, fetchTags, fetchRules, fetchEmails]);
+    initializeGmail().finally(() => setCheckingAuth(false));
+  }, [initializeGmail]);
+
+  // Re-initialize after GHL SSO fires (fetch interceptor is now active with userId)
+  useEffect(() => {
+    if (!ghlUser?.id || isConnected) return;
+    initializeGmail();
+  }, [ghlUser?.id, isConnected, initializeGmail]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -825,7 +847,7 @@ export default function DashboardPage() {
   if (!isConnected) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
       <p className="text-sm text-[#5f6368]">Non connecté à Gmail</p>
-      <ConnectGmail />
+      <ConnectGmail ghlUserId={ghlUser?.id} />
     </div>
   );
 

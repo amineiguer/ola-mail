@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getLabels, getAuthenticatedClient } from "@/lib/gmail";
 import { getTokens } from "@/lib/storage";
 
-export async function GET() {
-  const tokens = await getTokens();
+export async function GET(request: NextRequest) {
+  const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
+  const tokens = await getTokens(ghlUserId);
   if (!tokens?.access_token) {
     return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
   }

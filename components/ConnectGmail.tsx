@@ -6,17 +6,22 @@ import { Loader2, CheckCircle } from "lucide-react";
 interface ConnectGmailProps {
   compact?: boolean;
   isConnected?: boolean;
+  ghlUserId?: string;
 }
 
-export default function ConnectGmail({ compact = false, isConnected = false }: ConnectGmailProps) {
+export default function ConnectGmail({ compact = false, isConnected = false, ghlUserId }: ConnectGmailProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleConnect = () => {
     setIsLoading(true);
 
+    const url = ghlUserId
+      ? `/api/auth/gmail?userId=${encodeURIComponent(ghlUserId)}`
+      : "/api/auth/gmail";
+
     // Open OAuth in a popup so it works from within an iframe
     const popup = window.open(
-      "/api/auth/gmail",
+      url,
       "gmail-oauth",
       "width=600,height=700,scrollbars=yes,resizable=yes"
     );
