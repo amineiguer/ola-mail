@@ -7,9 +7,10 @@ interface ConnectGmailProps {
   compact?: boolean;
   isConnected?: boolean;
   ghlUserId?: string;
+  onConnected?: () => void;
 }
 
-export default function ConnectGmail({ compact = false, isConnected = false, ghlUserId }: ConnectGmailProps) {
+export default function ConnectGmail({ compact = false, isConnected = false, ghlUserId, onConnected }: ConnectGmailProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleConnect = () => {
@@ -30,7 +31,12 @@ export default function ConnectGmail({ compact = false, isConnected = false, ghl
       if (event.data?.type === "GMAIL_CONNECTED") {
         window.removeEventListener("message", onMessage);
         setIsLoading(false);
-        window.location.reload();
+        // Use callback if provided (avoids full reload which breaks GHL SSO context)
+        if (onConnected) {
+          onConnected();
+        } else {
+          window.location.reload();
+        }
       } else if (event.data?.type === "GMAIL_ERROR") {
         window.removeEventListener("message", onMessage);
         setIsLoading(false);
@@ -44,7 +50,11 @@ export default function ConnectGmail({ compact = false, isConnected = false, ghl
         clearInterval(poll);
         window.removeEventListener("message", onMessage);
         setIsLoading(false);
-        window.location.reload();
+        if (onConnected) {
+          onConnected();
+        } else {
+          window.location.reload();
+        }
       }
     }, 500);
   };

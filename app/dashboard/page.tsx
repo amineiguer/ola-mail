@@ -847,7 +847,7 @@ export default function DashboardPage() {
   if (!isConnected) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
       <p className="text-sm text-[#5f6368]">Non connecté à Gmail</p>
-      <ConnectGmail ghlUserId={ghlUser?.id} />
+      <ConnectGmail ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
       <p className="text-xs text-[#9aa0a6]">
         {ghlUser?.id
           ? `Utilisateur GHL : ${ghlUser.id}`
