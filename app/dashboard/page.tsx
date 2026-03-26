@@ -845,14 +845,27 @@ export default function DashboardPage() {
     </div>
   );
   if (!isConnected) return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
-      <p className="text-sm text-[#5f6368]">Non connecté à Gmail</p>
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-6 px-4">
+      <p className="text-sm font-medium text-[#5f6368]">Connecter votre compte Gmail</p>
       <ConnectGmail ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
-      <p className="text-xs text-[#9aa0a6]">
-        {ghlUser?.id
-          ? `Utilisateur GHL : ${ghlUser.id}`
-          : "En attente du contexte utilisateur GHL…"}
-      </p>
+
+      {/* GHL context status card */}
+      <div className="border border-[#e0e0e0] rounded-lg px-4 py-3 text-xs space-y-1.5 w-full max-w-xs">
+        <p className="font-medium text-[#3c4043]">Statut du contexte GHL</p>
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ghlUser?.id ? "bg-green-500" : "bg-yellow-400 animate-pulse"}`} />
+          {ghlUser?.id
+            ? <span className="text-[#3c4043]">Utilisateur reçu : <code className="bg-[#f1f3f4] px-1 rounded">{ghlUser.id}</code></span>
+            : <span className="text-[#9aa0a6]">En attente du contexte GHL…</span>
+          }
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${typeof window !== "undefined" && window.self !== window.top ? "bg-blue-500" : "bg-[#e0e0e0]"}`} />
+          <span className="text-[#9aa0a6]">
+            {typeof window !== "undefined" && window.self !== window.top ? "Chargé en iframe ✓" : "Mode standalone (hors GHL)"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 
