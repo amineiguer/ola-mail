@@ -37,3 +37,5 @@ next-env.d.ts
 # data (tokens and cached emails - sensitive!)
 /data/tokens.json
 /data/emails.json
+
+.vercel

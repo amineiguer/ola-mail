@@ -20,6 +20,7 @@ export interface StoredTokens {
   expiry_date?: number;
   token_type?: string;
   scope?: string;
+  email?: string;
 }
 
 export interface StoredEmail {
@@ -141,6 +142,7 @@ export async function saveTokens(
         google_token_expiry: tokens.expiry_date ?? null,
         google_scopes: tokens.scope ?? null,
         token_type: tokens.token_type ?? "Bearer",
+        email: tokens.email ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "ghl_user_id" }
@@ -155,7 +157,7 @@ export async function getTokens(ghlUserId?: string): Promise<StoredTokens | null
     const { supabase } = await import("@/lib/supabase");
     const { data } = await supabase
       .from("gmail_google_tokens")
-      .select("google_access_token, google_refresh_token, google_token_expiry, google_scopes, token_type")
+      .select("google_access_token, google_refresh_token, google_token_expiry, google_scopes, token_type, email")
       .eq("ghl_user_id", ghlUserId)
       .single();
     if (!data?.google_access_token) return null;
@@ -165,6 +167,7 @@ export async function getTokens(ghlUserId?: string): Promise<StoredTokens | null
       expiry_date: data.google_token_expiry ?? undefined,
       scope: data.google_scopes ?? undefined,
       token_type: data.token_type ?? undefined,
+      email: data.email ?? undefined,
     };
   }
   return readJsonFile<StoredTokens>(TOKENS_FILE);

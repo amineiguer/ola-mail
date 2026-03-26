@@ -150,6 +150,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (errorMessage.includes("Mail service not enabled")) {
+      return NextResponse.json(
+        { error: "Le compte Google connecté n'a pas Gmail activé. Reconnectez-vous avec un compte @gmail.com ou un compte Google Workspace où Gmail est activé.", errorCode: "GMAIL_NOT_ENABLED" },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(
       { error: `Erreur lors de la récupération des emails: ${errorMessage}` },
       { status: 500 }

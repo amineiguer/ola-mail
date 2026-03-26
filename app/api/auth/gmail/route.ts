@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   if (action === "status") {
     const ghlUserId = request.headers.get("x-ghl-user-id") ?? request.nextUrl.searchParams.get("userId") ?? undefined;
     const tokens = await getTokens(ghlUserId);
-    return NextResponse.json({ connected: !!(tokens?.access_token) });
+    return NextResponse.json({ connected: !!(tokens?.access_token), email: tokens?.email });
   }
 
   // Initiate OAuth flow
@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/userinfo.email",
       ],
       prompt: "consent",
       state: ghlUserId ? encodeURIComponent(ghlUserId) : undefined,

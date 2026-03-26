@@ -33,6 +33,13 @@ export async function GET(request: NextRequest) {
       throw new Error("Aucun token d'accès reçu");
     }
 
+    // Get the email of the connected Google account
+    let googleEmail: string | undefined;
+    try {
+      const tokenInfo = await oauth2Client.getTokenInfo(tokens.access_token!);
+      googleEmail = tokenInfo.email ?? undefined;
+    } catch { /* non-critical */ }
+
     await saveTokens(
       {
         access_token: tokens.access_token,
@@ -40,6 +47,7 @@ export async function GET(request: NextRequest) {
         expiry_date: tokens.expiry_date ?? undefined,
         token_type: tokens.token_type ?? undefined,
         scope: tokens.scope ?? undefined,
+        email: googleEmail,
       },
       ghlUserId
     );
