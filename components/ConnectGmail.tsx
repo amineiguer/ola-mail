@@ -13,7 +13,35 @@ export default function ConnectGmail({ compact = false, isConnected = false }: C
 
   const handleConnect = () => {
     setIsLoading(true);
-    window.location.href = "/api/auth/gmail";
+
+    // Open OAuth in a popup so it works from within an iframe
+    const popup = window.open(
+      "/api/auth/gmail",
+      "gmail-oauth",
+      "width=600,height=700,scrollbars=yes,resizable=yes"
+    );
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "GMAIL_CONNECTED") {
+        window.removeEventListener("message", onMessage);
+        setIsLoading(false);
+        window.location.reload();
+      } else if (event.data?.type === "GMAIL_ERROR") {
+        window.removeEventListener("message", onMessage);
+        setIsLoading(false);
+      }
+    };
+    window.addEventListener("message", onMessage);
+
+    // Fallback: detect popup closed without message
+    const poll = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(poll);
+        window.removeEventListener("message", onMessage);
+        setIsLoading(false);
+        window.location.reload();
+      }
+    }, 500);
   };
 
   if (isConnected) {

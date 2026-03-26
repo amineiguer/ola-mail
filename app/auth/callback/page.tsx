@@ -31,18 +31,25 @@ function CallbackContent() {
 
     if (success === "true") {
       setStatus("success");
-      setMessage("Gmail connecté avec succès ! Redirection vers le tableau de bord...");
+      // If opened as a popup, notify parent and close
+      if (window.opener) {
+        window.opener.postMessage({ type: "GMAIL_CONNECTED" }, "*");
+        setTimeout(() => window.close(), 1000);
+        setMessage("Gmail connecté ! Cette fenêtre va se fermer...");
+      } else {
+        setMessage("Gmail connecté avec succès ! Redirection vers le tableau de bord...");
+        const timer = setTimeout(() => router.push("/dashboard"), 2000);
+        return () => clearTimeout(timer);
+      }
     } else {
       setStatus("error");
+      if (window.opener) {
+        window.opener.postMessage({ type: "GMAIL_ERROR" }, "*");
+        setTimeout(() => window.close(), 2000);
+      }
       setMessage("Réponse inattendue. Veuillez réessayer.");
       return;
     }
-
-    const timer = setTimeout(() => {
-      router.push("/dashboard");
-    }, 2000);
-
-    return () => clearTimeout(timer);
   }, [searchParams, router]);
 
   return (
