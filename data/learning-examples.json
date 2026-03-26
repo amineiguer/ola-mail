@@ -1,0 +1,104 @@
+[
+  {
+    "subject": "Test",
+    "fromDomain": "hotmail.com",
+    "bodySnippet": "\r\n",
+    "category": "offre",
+    "suggestedTags": [
+      "contrat"
+    ],
+    "isContract": true,
+    "isDemandeInfo": false,
+    "confirmedBy": "user",
+    "id": "1774463519070-oxt5o",
+    "confirmedAt": "2026-03-25T18:31:59.070Z"
+  },
+  {
+    "subject": "Avis sur propriété - #QC28337243, 200 Rue Charest Saint-Janvier-de-Joly",
+    "fromDomain": "telmatik.com",
+    "bodySnippet": "À: AUDREY MALONE - RE/MAX HORIZON, SIEGE SOCIAL\r\nDe: VINCENT CÔTÉ-SÉVIGNY - VIA CAPITALE SÉLECT, SIEGE SOCIAL\r\nAvis sur propriété\r\nCliquez ici pour répondre à ce message ou pour ne plus recevoir d’avi",
+    "category": "visite",
+    "suggestedTags": [
+      "visite",
+      "offre"
+    ],
+    "isContract": false,
+    "isDemandeInfo": false,
+    "confirmedBy": "user",
+    "id": "1774463320773-tnwz2",
+    "confirmedAt": "2026-03-25T18:28:40.773Z"
+  },
+  {
+    "subject": "test",
+    "fromDomain": "hotmail.com",
+    "bodySnippet": "Google meet demain 9h?\r\n\r\n",
+    "category": "autre",
+    "suggestedTags": [
+      "needs-reply"
+    ],
+    "isContract": false,
+    "isDemandeInfo": false,
+    "confirmedBy": "user",
+    "id": "1774461263309-qg2rz",
+    "confirmedAt": "2026-03-25T17:54:23.309Z"
+  },
+  {
+    "subject": "Es-tu hétérosexuel?",
+    "fromDomain": "outlook.com",
+    "bodySnippet": "Allo amine, je me demandais si t'étais hétérosexuel ?\r\n\r\nOui ou non ??????\r\n",
+    "category": "autre",
+    "suggestedTags": [
+      "needs-reply"
+    ],
+    "isContract": false,
+    "isDemandeInfo": false,
+    "confirmedBy": "user",
+    "id": "1774453025931-315ab",
+    "confirmedAt": "2026-03-25T15:37:05.931Z"
+  },
+  {
+    "subject": "Add Contact",
+    "fromDomain": "centris.ca",
+    "bodySnippet": "",
+    "category": "needs-reply",
+    "suggestedTags": [
+      "lead",
+      "needs-reply"
+    ],
+    "isContract": false,
+    "isDemandeInfo": false,
+    "confirmedBy": "user",
+    "id": "1774451410102-ae1c3",
+    "confirmedAt": "2026-03-25T15:10:10.102Z"
+  },
+  {
+    "subject": "Visite pré-approuvée - Demande de visite - Antoine-Olivier Couillard, EXP AGENCE IMMOBILIÈRE, SIEGE ... ",
+    "fromDomain": "telmatik.com",
+    "bodySnippet": "À: RACHEL COULOMBE - RE/MAX ACCÈS INC., SIEGE SOCIAL\r\nDe: ANTOINE-OLIVIER COUILLARD - EXP AGENCE IMMOBILIÈRE, SIEGE SOCIAL\r\nDemande de visite\r\nCliquez ici pour répondre à ce message\r\nhttps://immoconta",
+    "category": "visite",
+    "suggestedTags": [
+      "visite",
+      "needs-reply"
+    ],
+    "isContract": false,
+    "isDemandeInfo": false,
+    "confirmedBy": "user",
+    "id": "1774450430467-j3end",
+    "confirmedAt": "2026-03-25T14:53:50.467Z"
+  },
+  {
+    "subject": "Nick, you have 1 new notification",
+    "fromDomain": "centris.ca",
+    "bodySnippet": "#outlook a{padding:0}body{margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}table,td{border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0}img{border:0;height:auto;li",
+    "category": "notaire",
+    "suggestedTags": [
+      "lead",
+      "custom-1774449572956-8gouy"
+    ],
+    "isContract": true,
+    "isDemandeInfo": false,
+    "confirmedBy": "user",
+    "id": "1774449589473-odoqo",
+    "confirmedAt": "2026-03-25T14:39:49.473Z"
+  }
+]
