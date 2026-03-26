@@ -118,20 +118,47 @@ function readJsonFile<T>(filePath: string): T | null {
 }
 
 function writeJsonFile<T>(filePath: string, data: T): void {
-  ensureDataDir();
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  try {
+    ensureDataDir();
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  } catch {
+    // Silently ignore on read-only filesystems (e.g. Vercel)
+  }
 }
 
-// Token management
+// Token management — uses cookies (works on Vercel) with file fallback (local dev)
 export async function saveTokens(tokens: StoredTokens): Promise<void> {
-  writeJsonFile(TOKENS_FILE, tokens);
+  try {
+    const { cookies } = await import("next/headers");
+    cookies().set("gmail_tokens", JSON.stringify(tokens), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  } catch {
+    // Fallback: file system (local dev without cookie context)
+    writeJsonFile(TOKENS_FILE, tokens);
+  }
 }
 
 export async function getTokens(): Promise<StoredTokens | null> {
+  // Try cookies first
+  try {
+    const { cookies } = await import("next/headers");
+    const raw = cookies().get("gmail_tokens")?.value;
+    if (raw) return JSON.parse(raw) as StoredTokens;
+  } catch {}
+  // Fallback: file system
   return readJsonFile<StoredTokens>(TOKENS_FILE);
 }
 
 export async function clearTokens(): Promise<void> {
+  try {
+    const { cookies } = await import("next/headers");
+    cookies().delete("gmail_tokens");
+  } catch {}
   if (fs.existsSync(TOKENS_FILE)) {
     fs.unlinkSync(TOKENS_FILE);
   }
