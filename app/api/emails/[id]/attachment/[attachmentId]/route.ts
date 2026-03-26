@@ -28,7 +28,7 @@ export async function GET(
     const mimeType =
       new URL(_req.url).searchParams.get("mime") ?? "application/octet-stream";
 
-    return new Response(buffer, {
+    return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": mimeType,
         "Content-Disposition": "inline",

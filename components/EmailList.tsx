@@ -117,9 +117,9 @@ export default function EmailList({
             {/* Left indicator — priority: urgent > needsReply > category icon > unread dot */}
             <div className="flex-shrink-0 w-5 flex items-center justify-center">
               {isUrgent ? (
-                <AlertCircle className="w-4 h-4 text-[#c5221f] dark:text-[#f28b82]" title="Urgent" />
+                <AlertCircle className="w-4 h-4 text-[#c5221f] dark:text-[#f28b82]" />
               ) : needsReply ? (
-                <Zap className="w-4 h-4 text-[#f6ae2d] fill-[#f6ae2d]" title="Action requise" />
+                <Zap className="w-4 h-4 text-[#f6ae2d] fill-[#f6ae2d]" />
               ) : CatIcon && catDef ? (
                 <CatIcon
                   className="w-4 h-4"
