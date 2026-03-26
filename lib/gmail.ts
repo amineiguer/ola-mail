@@ -46,7 +46,8 @@ export function getOAuthClient(): OAuth2Client {
 }
 
 export async function getAuthenticatedClient(
-  tokens: GmailTokens
+  tokens: GmailTokens,
+  ghlUserId?: string
 ): Promise<OAuth2Client> {
   const oauth2Client = getOAuthClient();
   oauth2Client.setCredentials({
@@ -56,7 +57,7 @@ export async function getAuthenticatedClient(
     token_type: tokens.token_type,
   });
 
-  // Auto-refresh token if expired
+  // Auto-refresh token if expired — persist with same ghlUserId
   oauth2Client.on("tokens", async (newTokens) => {
     if (newTokens.access_token) {
       const { saveTokens } = await import("@/lib/storage");
@@ -66,7 +67,7 @@ export async function getAuthenticatedClient(
         expiry_date: newTokens.expiry_date ?? undefined,
         token_type: newTokens.token_type ?? undefined,
         scope: tokens.scope,
-      });
+      }, ghlUserId);
     }
   });
 

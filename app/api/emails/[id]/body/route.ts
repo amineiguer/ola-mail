@@ -29,7 +29,7 @@ export async function GET(
     }
 
     // Fetch full email body from Gmail
-    const authClient = await getAuthenticatedClient(tokens);
+    const authClient = await getAuthenticatedClient(tokens, ghlUserId);
     const email = await getEmailById(authClient, emailId);
     if (!email) {
       return NextResponse.json({ error: "Email introuvable" }, { status: 404 });

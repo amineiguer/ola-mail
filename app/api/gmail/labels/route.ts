@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const authClient = await getAuthenticatedClient(tokens);
+    const authClient = await getAuthenticatedClient(tokens, ghlUserId);
     const labels = await getLabels(authClient);
 
     // Sort: user labels first, then system labels

@@ -845,26 +845,25 @@ export default function DashboardPage() {
     </div>
   );
   if (!isConnected) return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-6 px-4">
-      <p className="text-sm font-medium text-[#5f6368]">Connecter votre compte Gmail</p>
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-5 px-4">
+      <div className="text-center mb-2">
+        <p className="text-[13px] font-semibold text-zinc-800 tracking-tight mb-1">OLA Mail</p>
+        <p className="text-[13px] text-zinc-400">Connectez Gmail pour commencer</p>
+      </div>
+
       <ConnectGmail ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
 
-      {/* GHL context status card */}
-      <div className="border border-[#e0e0e0] rounded-lg px-4 py-3 text-xs space-y-1.5 w-full max-w-xs">
-        <p className="font-medium text-[#3c4043]">Statut du contexte GHL</p>
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ghlUser?.id ? "bg-green-500" : "bg-yellow-400 animate-pulse"}`} />
-          {ghlUser?.id
-            ? <span className="text-[#3c4043]">Utilisateur reçu : <code className="bg-[#f1f3f4] px-1 rounded">{ghlUser.id}</code></span>
-            : <span className="text-[#9aa0a6]">En attente du contexte GHL…</span>
-          }
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${typeof window !== "undefined" && window.self !== window.top ? "bg-blue-500" : "bg-[#e0e0e0]"}`} />
-          <span className="text-[#9aa0a6]">
-            {typeof window !== "undefined" && window.self !== window.top ? "Chargé en iframe ✓" : "Mode standalone (hors GHL)"}
+      {/* GHL context status — monochrome */}
+      <div className="border border-zinc-200 rounded-lg px-4 py-3 text-xs space-y-1.5 w-full max-w-[260px]">
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-400">Contexte GHL</span>
+          <span className={`text-[11px] font-medium ${ghlUser?.id ? "text-zinc-700" : "text-zinc-400"}`}>
+            {ghlUser?.id ? "reçu ✓" : "en attente…"}
           </span>
         </div>
+        {ghlUser?.id && (
+          <p className="text-zinc-500 truncate font-mono">{ghlUser.id}</p>
+        )}
       </div>
     </div>
   );

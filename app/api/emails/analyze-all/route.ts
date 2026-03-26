@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const authClient = await getAuthenticatedClient(tokens);
+    const authClient = await getAuthenticatedClient(tokens, ghlUserId);
     let analyzed = 0;
     const updatedCache = [...cache];
 

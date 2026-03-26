@@ -18,7 +18,7 @@ export async function GET(
   }
 
   try {
-    const authClient = await getAuthenticatedClient(tokens);
+    const authClient = await getAuthenticatedClient(tokens, ghlUserId);
     const buffer = await getAttachment(authClient, emailId, attachmentId);
 
     if (!buffer) {

@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const propertyName = cachedEmail.analysis.propertyName || "Propriété Inconnue";
 
     // Download the attachment from Gmail
-    const authClient = await getAuthenticatedClient(tokens);
+    const authClient = await getAuthenticatedClient(tokens, ghlUserId);
     const attachmentData = await getAttachment(authClient, emailId, attachmentId);
 
     if (!attachmentData) {

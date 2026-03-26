@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch fresh emails from Gmail (metadata only, batched to respect quota)
-    const authClient = await getAuthenticatedClient(tokens);
+    const authClient = await getAuthenticatedClient(tokens, ghlUserId);
     const emails = await getEmails(authClient, 50, labelId, daysBack);
 
     // Merge with existing analysis / tags / aiTags data from cache

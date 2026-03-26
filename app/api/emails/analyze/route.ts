@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const authClient = await getAuthenticatedClient(tokens);
+    const authClient = await getAuthenticatedClient(tokens, ghlUserId);
     const emailData = await getEmailById(authClient, emailId!);
 
     if (!emailData) {
