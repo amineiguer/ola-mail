@@ -897,49 +897,6 @@ export default function ContractCard({
           </div>
         )}
 
-        {/* ── Visit action banner ── */}
-        {replyUrl && !visitConfirmed && (
-          <div className="mb-4 rounded-xl bg-[#e6f4ea] dark:bg-[#1a3a24] border border-[#81c995]/40 overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-3">
-              <CheckCircle className="w-4 h-4 text-[#137333] dark:text-[#81c995] flex-shrink-0" />
-              <span className="text-[13px] text-[#137333] dark:text-[#81c995] flex-1 font-medium">
-                {appointmentInfo
-                  ? `Visite le ${appointmentInfo.startIso.replace("T", " à ")}${appointmentInfo.address ? ` — ${appointmentInfo.address}` : ""}`
-                  : "Demande de visite — action requise"}
-              </span>
-              <a
-                href={replyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => { setVisitConfirmed(true); onMarkReplied?.(email.id); }}
-                className="flex items-center gap-1.5 bg-[#137333] hover:bg-[#0d5826] text-white text-[12px] font-medium px-4 py-1.5 rounded-full transition-colors flex-shrink-0"
-              >
-                <ExternalLink className="w-3 h-3" /> Confirmer / Refuser
-              </a>
-            </div>
-            {appointmentInfo && (
-              <div className="flex items-center gap-2 px-4 py-2 border-t border-[#81c995]/30">
-                <span className="text-[12px] text-[#137333] dark:text-[#81c995] flex-1">
-                  Ajouter au calendrier ?
-                </span>
-                <a
-                  href={appointmentInfo.calUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[#137333] dark:text-[#81c995] border border-[#81c995]/60 hover:bg-[#81c995]/20 text-[12px] font-medium px-3 py-1 rounded-full transition-colors"
-                >
-                  <Plus className="w-3 h-3" /> Google Agenda
-                </a>
-              </div>
-            )}
-          </div>
-        )}
-        {replyUrl && visitConfirmed && (
-          <div className="mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#f1f3f4] dark:bg-[#2d2e30] text-[#5f6368] dark:text-[#9aa0a6] text-[12px]">
-            <CheckCircle className="w-3.5 h-3.5 text-[#137333] dark:text-[#81c995]" />
-            Action complétée — visite confirmée
-          </div>
-        )}
 
         {/* ── Email body viewer ── */}
         {bodyLoading ? (
