@@ -12,6 +12,7 @@ import EmailList from "@/components/EmailList";
 import ContractCard from "@/components/ContractCard";
 import VisitesCalendar from "@/components/VisitesCalendar";
 import ConnectGmail from "@/components/ConnectGmail";
+import ConnectOutlook from "@/components/ConnectOutlook";
 import RulesModal from "@/components/RulesModal";
 import CreateTagModal from "@/components/CreateTagModal";
 import ComposePanel from "@/components/ComposePanel";
@@ -173,6 +174,10 @@ export default function DashboardPage() {
   const [newEmailsCount, setNewEmailsCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isOutlookConnected, setIsOutlookConnected] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState<string | undefined>();
+  const [outlookEmail, setOutlookEmail] = useState<string | undefined>();
+  const [activeProviderFilter, setActiveProviderFilter] = useState<"all" | "gmail" | "outlook">("all");
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [isDark, setIsDark] = useState(false);
@@ -225,6 +230,8 @@ export default function DashboardPage() {
   });
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
   const dragSectionRef = useRef<string | null>(null);
+  const ghlSsoInitializedRef = useRef(false);
+  const intentionalDisconnectRef = useRef(false);
 
   const t = (key: string) => UI[lang][key] ?? key;
   const syncSettingsRef = useRef<HTMLDivElement>(null);
@@ -397,26 +404,46 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const fetchEmails = useCallback(async (labelId?: string, refresh = false, days?: number) => {
+  const fetchEmails = useCallback(async (labelId?: string, refresh = false, days?: number, providerFilter?: "all" | "gmail" | "outlook") => {
     setIsLoading(true);
     setError(null);
     try {
-      const p = new URLSearchParams();
-      if (labelId) p.set("label", labelId);
-      if (refresh) p.set("refresh", "true");
-      if (days) p.set("days", String(days));
-      const res = await fetch(`/api/emails?${p}`);
-      if (res.status === 401) { setIsConnected(false); return; }
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Erreur"); }
-      const data = await res.json();
-      setEmails(data.emails || []);
-      computeStats(data.emails || []);
+      const filter = providerFilter ?? activeProviderFilter;
+
+      const gmailPromise = filter !== "outlook" ? (async () => {
+        const p = new URLSearchParams();
+        if (labelId) p.set("label", labelId);
+        if (refresh) p.set("refresh", "true");
+        if (days) p.set("days", String(days));
+        const res = await fetch(`/api/emails?${p}`);
+        if (res.status === 401) { setIsConnected(false); return []; }
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Erreur Gmail"); }
+        const data = await res.json();
+        return (data.emails || []) as EmailItem[];
+      })() : Promise.resolve([] as EmailItem[]);
+
+      const outlookPromise = filter !== "gmail" ? (async () => {
+        const p = new URLSearchParams();
+        if (days) p.set("days", String(days));
+        const res = await fetch(`/api/emails/outlook?${p}`);
+        if (res.status === 401 || res.status === 400) return [];
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data.emails || []) as EmailItem[];
+      })() : Promise.resolve([] as EmailItem[]);
+
+      const [gmailEmails, outlookEmails] = await Promise.all([gmailPromise, outlookPromise]);
+      const allEmails = [...(gmailEmails ?? []), ...outlookEmails].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      setEmails(allEmails);
+      computeStats(allEmails);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
       setIsLoading(false);
     }
-  }, [computeStats]);
+  }, [computeStats, activeProviderFilter]);
 
   const fetchLabels = useCallback(async () => {
     try {
@@ -447,15 +474,30 @@ export default function DashboardPage() {
   }, []);
 
   const initializeGmail = useCallback(async () => {
+    // Reset intentional disconnect flag so future reconnects work
+    intentionalDisconnectRef.current = false;
     try {
-      const res = await fetch("/api/auth/gmail?action=status");
-      if (!res.ok) return;
-      const { connected } = await res.json();
-      if (!connected) return;
-      setIsConnected(true);
+      const [gmailRes, outlookRes] = await Promise.all([
+        fetch("/api/auth/gmail?action=status"),
+        fetch("/api/auth/outlook?action=status"),
+      ]);
+
+      const gmailData = gmailRes.ok ? await gmailRes.json() : { connected: false };
+      const outlookData = outlookRes.ok ? await outlookRes.json() : { connected: false };
+
+      const gmailConnected = !!gmailData.connected;
+      const outlookConnected = !!outlookData.connected;
+
+      setIsConnected(gmailConnected);
+      setIsOutlookConnected(outlookConnected);
+      if (gmailData.email) setGmailEmail(gmailData.email);
+      if (outlookData.email) setOutlookEmail(outlookData.email);
+
+      if (!gmailConnected && !outlookConnected) return;
+
       const savedDays = Number(localStorage.getItem("ola-sync-days") ?? "30");
       setSyncDays(savedDays);
-      fetchLabels();
+      if (gmailConnected) { fetchLabels(); }
       fetchTags();
       fetchRules();
       fetchEmails(undefined, false, savedDays);
@@ -464,13 +506,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     initializeGmail().finally(() => setCheckingAuth(false));
-  }, [initializeGmail]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-initialize after GHL SSO fires (fetch interceptor is now active with userId)
+  // Re-initialize ONLY when GHL SSO fires for the first time
   useEffect(() => {
-    if (!ghlUser?.id || isConnected) return;
+    if (!ghlUser?.id || ghlSsoInitializedRef.current || intentionalDisconnectRef.current) return;
+    ghlSsoInitializedRef.current = true;
     initializeGmail();
-  }, [ghlUser?.id, isConnected, initializeGmail]);
+  }, [ghlUser?.id, initializeGmail]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -518,7 +561,7 @@ export default function DashboardPage() {
   const newEmailsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const poll = async () => {
-      if (!isConnected) return;
+      if (!isConnected && !isOutlookConnected) return;
       try {
         // Use days=2 for a lighter poll — only checks recent emails
         const res = await fetch("/api/emails?refresh=true&days=2");
@@ -544,7 +587,7 @@ export default function DashboardPage() {
     };
     const id = setInterval(poll, 60_000);
     return () => { clearInterval(id); if (newEmailsTimerRef.current) clearTimeout(newEmailsTimerRef.current); };
-  }, [isConnected, computeStats]);
+  }, [isConnected, isOutlookConnected, computeStats]);
 
   // Keep email ID set in sync when emails load normally
   useEffect(() => {
@@ -675,7 +718,29 @@ export default function DashboardPage() {
   };
 
   const handleDisconnect = async () => {
-    try { await fetch("/api/auth/gmail", { method: "DELETE" }); } finally { router.push("/"); }
+    intentionalDisconnectRef.current = true;
+    try { await fetch("/api/auth/gmail", { method: "DELETE" }); } catch { /* silent */ }
+    setIsConnected(false);
+    setGmailEmail(undefined);
+    if (isOutlookConnected) {
+      setActiveProviderFilter("outlook");
+      fetchEmails(undefined, false, syncDays, "outlook");
+    } else {
+      setEmails([]);
+    }
+  };
+
+  const handleDisconnectOutlook = async () => {
+    intentionalDisconnectRef.current = true;
+    try { await fetch("/api/auth/outlook", { method: "DELETE" }); } catch { /* silent */ }
+    setIsOutlookConnected(false);
+    setOutlookEmail(undefined);
+    if (isConnected) {
+      setActiveProviderFilter("gmail");
+      fetchEmails(undefined, false, syncDays, "gmail");
+    } else {
+      setEmails([]);
+    }
   };
 
   // Count emails per tag (combined manual + ai suggested)
@@ -844,14 +909,17 @@ export default function DashboardPage() {
       <RefreshCw className="w-5 h-5 text-[#9aa0a6] animate-spin" />
     </div>
   );
-  if (!isConnected) return (
+  if (!isConnected && !isOutlookConnected) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-5 px-4">
       <div className="text-center mb-2">
         <p className="text-[13px] font-semibold text-zinc-800 tracking-tight mb-1">OLA Mail</p>
-        <p className="text-[13px] text-zinc-400">Connectez Gmail pour commencer</p>
+        <p className="text-[13px] text-zinc-400">Connectez votre boîte mail pour commencer</p>
       </div>
 
-      <ConnectGmail ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
+      <div className="flex flex-col gap-3 w-full max-w-[260px]">
+        <ConnectGmail ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
+        <ConnectOutlook ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
+      </div>
 
       {/* GHL context status — monochrome */}
       <div className="border border-zinc-200 rounded-lg px-4 py-3 text-xs space-y-1.5 w-full max-w-[260px]">
@@ -983,6 +1051,49 @@ export default function DashboardPage() {
               {showSettingsPanel && (
                 <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-[#2d2e30] border border-[#e0e0e0] dark:border-[#3c4043] rounded-2xl shadow-xl w-[300px] p-4 flex flex-col gap-4">
                   <p className="text-[13px] font-semibold text-[#202124] dark:text-[#e8eaed]">Réglages</p>
+
+                  {/* Email accounts */}
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#9aa0a6]">Comptes email</p>
+
+                    {/* Gmail row */}
+                    <div className="flex items-center gap-2 py-1.5 px-2.5 rounded-xl bg-[#f8f9fa] dark:bg-[#202124]">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isConnected ? "bg-[#34a853]" : "bg-[#dadce0] dark:bg-[#5f6368]"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium text-[#202124] dark:text-[#e8eaed]">Gmail</p>
+                        {gmailEmail && <p className="text-[11px] text-[#9aa0a6] truncate">{gmailEmail}</p>}
+                      </div>
+                      {isConnected ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDisconnect(); setShowSettingsPanel(false); }}
+                          className="text-[11px] text-[#c5221f] dark:text-[#f28b82] hover:underline flex-shrink-0"
+                        >
+                          Déconnecter
+                        </button>
+                      ) : (
+                        <ConnectGmail compact ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
+                      )}
+                    </div>
+
+                    {/* Outlook row */}
+                    <div className="flex items-center gap-2 py-1.5 px-2.5 rounded-xl bg-[#f8f9fa] dark:bg-[#202124]">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isOutlookConnected ? "bg-[#34a853]" : "bg-[#dadce0] dark:bg-[#5f6368]"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium text-[#202124] dark:text-[#e8eaed]">Outlook</p>
+                        {outlookEmail && <p className="text-[11px] text-[#9aa0a6] truncate">{outlookEmail}</p>}
+                      </div>
+                      {isOutlookConnected ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDisconnectOutlook(); setShowSettingsPanel(false); }}
+                          className="text-[11px] text-[#c5221f] dark:text-[#f28b82] hover:underline flex-shrink-0"
+                        >
+                          Déconnecter
+                        </button>
+                      ) : (
+                        <ConnectOutlook compact ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
+                      )}
+                    </div>
+                  </div>
 
                   {/* Rédaction */}
                   <div className="flex flex-col gap-3">
@@ -1143,11 +1254,20 @@ export default function DashboardPage() {
                 ? <Sun className="w-4 h-4 text-[#9aa0a6]" />
                 : <Moon className="w-4 h-4 text-[#5f6368]" />}
             </button>
-            <button onClick={handleDisconnect}
-              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] transition-colors"
-              title={t("disconnect")}>
-              <LogOut className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
-            </button>
+            {/* Provider filter tabs — only visible when both providers connected */}
+            {isConnected && isOutlookConnected && (
+              <div className="flex items-center gap-0.5 bg-[#f1f3f4] dark:bg-[#303134] rounded-full px-1 py-0.5">
+                {(["all", "gmail", "outlook"] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => { setActiveProviderFilter(p); fetchEmails(undefined, false, syncDays, p); }}
+                    className={`text-[11px] font-medium px-2.5 py-1 rounded-full transition-colors ${activeProviderFilter === p ? "bg-white dark:bg-[#3c4043] text-[#202124] dark:text-[#e8eaed] shadow-sm" : "text-[#5f6368] dark:text-[#9aa0a6] hover:text-[#202124] dark:hover:text-[#e8eaed]"}`}
+                  >
+                    {p === "all" ? "Tous" : p === "gmail" ? "Gmail" : "Outlook"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -39,9 +39,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
-    await clearTokens();
+    const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
+    await clearTokens(ghlUserId);
     return NextResponse.json({ success: true, message: "Déconnecté de Gmail" });
   } catch (error) {
     console.error("Erreur lors de la déconnexion:", error);

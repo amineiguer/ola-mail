@@ -279,6 +279,69 @@ export async function updateSettings(patch: Partial<AppSettings>): Promise<AppSe
   return updated;
 }
 
+// Outlook token management
+export interface OutlookTokens {
+  access_token: string;
+  refresh_token?: string;
+  expiry_date?: number;
+  token_type?: string;
+  scope?: string;
+  email?: string;
+}
+
+export async function saveOutlookTokens(
+  tokens: OutlookTokens,
+  ghlUserId: string
+): Promise<void> {
+  if (process.env.SUPABASE_URL) {
+    const { supabase } = await import("@/lib/supabase");
+    await supabase.from("outlook_tokens").upsert(
+      {
+        ghl_user_id: ghlUserId,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token ?? null,
+        token_expiry: tokens.expiry_date ?? null,
+        scopes: tokens.scope ?? null,
+        token_type: tokens.token_type ?? "Bearer",
+        email: tokens.email ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "ghl_user_id" }
+    );
+  }
+}
+
+export async function getOutlookTokens(ghlUserId: string): Promise<OutlookTokens | null> {
+  if (process.env.SUPABASE_URL) {
+    const { supabase } = await import("@/lib/supabase");
+    const { data } = await supabase
+      .from("outlook_tokens")
+      .select("access_token, refresh_token, token_expiry, scopes, token_type, email")
+      .eq("ghl_user_id", ghlUserId)
+      .single();
+    if (!data?.access_token) return null;
+    return {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token ?? undefined,
+      expiry_date: data.token_expiry ?? undefined,
+      scope: data.scopes ?? undefined,
+      token_type: data.token_type ?? undefined,
+      email: data.email ?? undefined,
+    };
+  }
+  return null;
+}
+
+export async function clearOutlookTokens(ghlUserId: string): Promise<void> {
+  if (process.env.SUPABASE_URL) {
+    const { supabase } = await import("@/lib/supabase");
+    await supabase
+      .from("outlook_tokens")
+      .update({ access_token: null, refresh_token: null })
+      .eq("ghl_user_id", ghlUserId);
+  }
+}
+
 export async function updateEmailLinkedContact(
   emailId: string,
   linkedContact: StoredEmail["linkedContact"] | null

@@ -31,20 +31,25 @@ function CallbackContent() {
 
     if (success === "true") {
       setStatus("success");
+      const provider = searchParams.get("provider") ?? "gmail";
+      const msgType = provider === "outlook" ? "OUTLOOK_CONNECTED" : "GMAIL_CONNECTED";
+      const providerName = provider === "outlook" ? "Outlook" : "Gmail";
       // If opened as a popup, notify parent and close
       if (window.opener) {
-        window.opener.postMessage({ type: "GMAIL_CONNECTED" }, "*");
+        window.opener.postMessage({ type: msgType }, "*");
         setTimeout(() => window.close(), 1000);
-        setMessage("Gmail connecté ! Cette fenêtre va se fermer...");
+        setMessage(`${providerName} connecté ! Cette fenêtre va se fermer...`);
       } else {
-        setMessage("Gmail connecté avec succès ! Redirection vers le tableau de bord...");
+        setMessage(`${providerName} connecté avec succès ! Redirection vers le tableau de bord...`);
         const timer = setTimeout(() => router.push("/dashboard"), 2000);
         return () => clearTimeout(timer);
       }
     } else {
       setStatus("error");
+      const provider = searchParams.get("provider") ?? "gmail";
+      const errType = provider === "outlook" ? "OUTLOOK_ERROR" : "GMAIL_ERROR";
       if (window.opener) {
-        window.opener.postMessage({ type: "GMAIL_ERROR" }, "*");
+        window.opener.postMessage({ type: errType }, "*");
         setTimeout(() => window.close(), 2000);
       }
       setMessage("Réponse inattendue. Veuillez réessayer.");
