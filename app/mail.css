@@ -1070,6 +1070,29 @@ a {
   margin-top: 4px;
 }
 
+.connect-screen-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--c-border);
+  border-top-color: var(--c-badge);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.connect-screen-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+  color: var(--c-text-3);
+  margin-top: 8px;
+}
+.connect-screen-footer a {
+  color: var(--c-text-2);
+  text-decoration: none;
+}
+.connect-screen-footer a:hover { text-decoration: underline; }
+
 .connect-buttons {
   display: flex;
   flex-direction: column;

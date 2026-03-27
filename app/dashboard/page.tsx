@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   RefreshCw,
   Search, Settings, X,
@@ -162,6 +163,7 @@ function emailMatchesTag(email: EmailItem, tagId: string): boolean {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [emails, setEmails] = useState<EmailItem[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<EmailItem | null>(null);
   const [stats, setStats] = useState<Stats>({ totalEmails: 0, contractsFound: 0, uploadedToGhl: 0, pendingAnalysis: 0 });
@@ -490,7 +492,10 @@ export default function DashboardPage() {
       if (gmailData.email) setGmailEmail(gmailData.email);
       if (outlookData.email) setOutlookEmail(outlookData.email);
 
-      if (!gmailConnected && !outlookConnected) return;
+      if (!gmailConnected && !outlookConnected) {
+        router.replace("/");
+        return;
+      }
 
       const savedDays = Number(localStorage.getItem("ola-sync-days") ?? "30");
       setSyncDays(savedDays);
@@ -916,21 +921,6 @@ export default function DashboardPage() {
     </div>
   );
 
-  if (!isConnected && !isOutlookConnected) return (
-    <div className="connect-screen">
-      <div className="connect-screen-header">
-        <div className="connect-screen-logo">
-          <span className="connect-screen-logo-text">Boîte courriel</span>
-        </div>
-        <p className="connect-screen-sub">Connectez votre boîte mail pour commencer</p>
-      </div>
-
-      <div className="connect-buttons">
-        <ConnectGmail ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
-        <ConnectOutlook ghlUserId={ghlUser?.id} onConnected={initializeGmail} />
-      </div>
-    </div>
-  );
 
   const userLabels = labels.filter((l) => l.type === "user");
 
