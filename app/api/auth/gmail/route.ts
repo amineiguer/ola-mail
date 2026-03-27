@@ -9,6 +9,7 @@ function getStorageKey(request: NextRequest, fallbackUserId?: string): string | 
     fallbackUserId ??
     request.headers.get("x-ghl-user-id") ??
     request.nextUrl.searchParams.get("userId") ??
+    request.nextUrl.searchParams.get("sessionId") ??
     request.cookies.get("ola_session")?.value ??
     undefined
   );
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Initiate OAuth flow
-  const ghlUserId = searchParams.get("userId") ?? undefined;
+  const ghlUserId = searchParams.get("userId") ?? searchParams.get("sessionId") ?? undefined;
 
   try {
     const oauth2Client = getOAuthClient();

@@ -9,6 +9,20 @@ interface ConnectGmailProps {
   onConnected?: () => void;
 }
 
+/** Get or create a persistent session ID stored in localStorage */
+function getOrCreateSessionId(): string {
+  try {
+    let id = localStorage.getItem("ola_session_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("ola_session_id", id);
+    }
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
 export default function ConnectGmail({
   compact = false,
   isConnected = false,
@@ -20,20 +34,16 @@ export default function ConnectGmail({
   const handleConnect = () => {
     setIsLoading(true);
 
-    const url = ghlUserId
-      ? `/api/auth/gmail?userId=${encodeURIComponent(ghlUserId)}`
-      : "/api/auth/gmail";
+    // Always use a stable, client-controlled key so popup and main window agree
+    const sessionKey = ghlUserId ?? getOrCreateSessionId();
+    const url = `/api/auth/gmail?sessionId=${encodeURIComponent(sessionKey)}`;
 
-    // Open OAuth popup
     window.open(url, "gmail-oauth", "width=600,height=700,scrollbars=yes,resizable=yes");
 
-    // Poll Supabase (via API) as the single source of truth.
-    // Works regardless of window.opener (Google COOP), localStorage restrictions, or popup state.
+    // Poll Supabase (via API) using the same sessionKey — works regardless of COOP
     const poll = setInterval(async () => {
       try {
-        const statusUrl = ghlUserId
-          ? `/api/auth/gmail?action=status&userId=${encodeURIComponent(ghlUserId)}`
-          : "/api/auth/gmail?action=status";
+        const statusUrl = `/api/auth/gmail?action=status&sessionId=${encodeURIComponent(sessionKey)}`;
         const res = await fetch(statusUrl);
         if (!res.ok) return;
         const data = await res.json();

@@ -493,7 +493,7 @@ export default function DashboardPage() {
       if (outlookData.email) setOutlookEmail(outlookData.email);
 
       if (!gmailConnected && !outlookConnected) {
-        router.replace("/");
+        // Stay on dashboard — show inline connect UI
         return;
       }
 
@@ -952,8 +952,8 @@ export default function DashboardPage() {
         <div className="topbar-right">
           {/* OLA sync status dot */}
           <span
-            className={`sync-dot${isSyncing || isLoading ? " sync-dot--syncing" : isConnected || isOutlookConnected ? " sync-dot--ok" : " sync-dot--error"}`}
-            title={isSyncing || isLoading ? "Synchronisation en cours…" : isConnected || isOutlookConnected ? "Synchronisé avec OLA" : "Non connecté à OLA"}
+            className={`sync-dot${ghlUserLoading ? " sync-dot--syncing" : ghlUser ? " sync-dot--ok" : " sync-dot--error"}`}
+            title={ghlUserLoading ? "Connexion OLA en cours…" : ghlUser ? `OLA connecté${ghlUser.name ? ` · ${ghlUser.name}` : ""}` : "Non connecté à OLA"}
           />
 
           {/* Language toggle */}
@@ -1246,8 +1246,27 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* List */}
-            {isLoading ? (
+            {/* Inline connect prompt when no mailbox is linked */}
+            {!isConnected && !isOutlookConnected && !checkingAuth ? (
+              <div className="inline-connect-prompt">
+                <p className="inline-connect-title">Connectez votre boîte mail</p>
+                <p className="inline-connect-sub">Reliez Gmail ou Outlook pour voir vos emails ici.</p>
+                <div className="inline-connect-buttons">
+                  <ConnectGmail
+                    compact
+                    isConnected={false}
+                    ghlUserId={ghlUser?.id}
+                    onConnected={() => { emailsLoadedRef.current = false; initializeGmail(); }}
+                  />
+                  <ConnectOutlook
+                    compact
+                    isConnected={false}
+                    ghlUserId={ghlUser?.id}
+                    onConnected={() => { emailsLoadedRef.current = false; initializeGmail(); }}
+                  />
+                </div>
+              </div>
+            ) : isLoading ? (
               <div className="list-loading-state">
                 <RefreshCw size={18} className="animate-spin" style={{ color: "var(--text-muted)" }} />
                 <p>Chargement…</p>

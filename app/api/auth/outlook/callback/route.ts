@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
   }
 
   const state = searchParams.get("state");
-  const ghlUserId = state ? decodeURIComponent(state) : undefined;
+  let ghlUserId: string | undefined;
+  if (state?.startsWith("user_")) {
+    ghlUserId = decodeURIComponent(state.slice(5));
+  }
 
   try {
     const tokens = await exchangeOutlookCode(code);

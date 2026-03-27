@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const ghlUserId =
       request.headers.get("x-ghl-user-id") ??
       searchParams.get("userId") ??
+      searchParams.get("sessionId") ??
       undefined;
     if (!ghlUserId) {
       return NextResponse.json({ connected: false });
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Initiate OAuth flow
-  const ghlUserId = searchParams.get("userId") ?? undefined;
+  const ghlUserId = searchParams.get("userId") ?? searchParams.get("sessionId") ?? undefined;
 
   try {
     const authUrl = getOutlookAuthUrl(ghlUserId);

@@ -132,11 +132,12 @@ export async function saveTokens(
   tokens: StoredTokens,
   ghlUserId?: string
 ): Promise<void> {
-  if (ghlUserId && process.env.SUPABASE_URL) {
+  if (process.env.SUPABASE_URL) {
+    const key = ghlUserId ?? "default";
     const { supabase } = await import("@/lib/supabase");
     await supabase.from("gmail_google_tokens").upsert(
       {
-        ghl_user_id: ghlUserId,
+        ghl_user_id: key,
         google_access_token: tokens.access_token,
         google_refresh_token: tokens.refresh_token ?? null,
         google_token_expiry: tokens.expiry_date ?? null,
@@ -153,12 +154,13 @@ export async function saveTokens(
 }
 
 export async function getTokens(ghlUserId?: string): Promise<StoredTokens | null> {
-  if (ghlUserId && process.env.SUPABASE_URL) {
+  if (process.env.SUPABASE_URL) {
+    const key = ghlUserId ?? "default";
     const { supabase } = await import("@/lib/supabase");
     const { data } = await supabase
       .from("gmail_google_tokens")
       .select("google_access_token, google_refresh_token, google_token_expiry, google_scopes, token_type, email")
-      .eq("ghl_user_id", ghlUserId)
+      .eq("ghl_user_id", key)
       .single();
     if (!data?.google_access_token) return null;
     return {
@@ -174,12 +176,13 @@ export async function getTokens(ghlUserId?: string): Promise<StoredTokens | null
 }
 
 export async function clearTokens(ghlUserId?: string): Promise<void> {
-  if (ghlUserId && process.env.SUPABASE_URL) {
+  if (process.env.SUPABASE_URL) {
+    const key = ghlUserId ?? "default";
     const { supabase } = await import("@/lib/supabase");
     await supabase
       .from("gmail_google_tokens")
       .update({ google_access_token: null, google_refresh_token: null })
-      .eq("ghl_user_id", ghlUserId);
+      .eq("ghl_user_id", key);
     return;
   }
   if (fs.existsSync(TOKENS_FILE)) fs.unlinkSync(TOKENS_FILE);

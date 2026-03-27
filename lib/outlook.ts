@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { OutlookTokens, saveOutlookTokens } from "@/lib/storage";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
@@ -40,9 +41,10 @@ export function getOutlookAuthUrl(ghlUserId?: string): string {
     prompt: "select_account",
   });
 
-  if (ghlUserId) {
-    params.set("state", encodeURIComponent(ghlUserId));
-  }
+  const state = ghlUserId
+    ? `user_${encodeURIComponent(ghlUserId)}`
+    : `nonce_${crypto.randomBytes(16).toString("hex")}`;
+  params.set("state", state);
 
   return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`;
 }

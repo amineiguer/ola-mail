@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmails, getAuthenticatedClient } from "@/lib/gmail";
-import { getTokens, getEmailsCache, saveEmailsCache, getRules, StoredEmail, Rule } from "@/lib/storage";
+import { getTokens, clearTokens, getEmailsCache, saveEmailsCache, getRules, StoredEmail, Rule } from "@/lib/storage";
 
 /** Instantly tag emails from known Quebec real-estate sources without AI */
 function detectEmailSourceTags(email: StoredEmail): string[] {
@@ -142,10 +142,15 @@ export async function GET(request: NextRequest) {
 
     if (
       errorMessage.includes("invalid_grant") ||
-      errorMessage.includes("Token has been expired")
+      errorMessage.includes("Token has been expired") ||
+      errorMessage.includes("Token has been revoked") ||
+      errorMessage.includes("token has been revoked") ||
+      errorMessage.includes("UNAUTHENTICATED")
     ) {
+      // Clear the stored tokens so the user is prompted to reconnect
+      await clearTokens(ghlUserId).catch(() => {});
       return NextResponse.json(
-        { error: "Session Gmail expirée. Veuillez vous reconnecter." },
+        { error: "Session Gmail expirée. Veuillez vous reconnecter.", errorCode: "TOKEN_REVOKED" },
         { status: 401 }
       );
     }
