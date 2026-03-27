@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CheckCircle } from "lucide-react";
 
 interface ConnectOutlookProps {
   compact?: boolean;
@@ -25,48 +24,40 @@ export default function ConnectOutlook({
       ? `/api/auth/outlook?userId=${encodeURIComponent(ghlUserId)}`
       : "/api/auth/outlook";
 
-    const popup = window.open(
-      url,
-      "outlook-oauth",
-      "width=600,height=700,scrollbars=yes,resizable=yes"
-    );
+    // Open OAuth popup
+    window.open(url, "outlook-oauth", "width=600,height=700,scrollbars=yes,resizable=yes");
 
-    const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "OUTLOOK_CONNECTED") {
-        window.removeEventListener("message", onMessage);
-        setIsLoading(false);
-        if (onConnected) {
-          onConnected();
-        } else {
-          window.location.reload();
+    // Poll Supabase (via API) as the single source of truth.
+    // Works regardless of window.opener (Google COOP), localStorage restrictions, or popup state.
+    const poll = setInterval(async () => {
+      try {
+        const statusUrl = ghlUserId
+          ? `/api/auth/outlook?action=status&userId=${encodeURIComponent(ghlUserId)}`
+          : "/api/auth/outlook?action=status";
+        const res = await fetch(statusUrl);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.connected) {
+          clearInterval(poll);
+          clearTimeout(timeout);
+          setIsLoading(false);
+          if (onConnected) onConnected();
+          else window.location.reload();
         }
-      } else if (event.data?.type === "OUTLOOK_ERROR") {
-        window.removeEventListener("message", onMessage);
-        setIsLoading(false);
-      }
-    };
-    window.addEventListener("message", onMessage);
+      } catch { /* ignore — will retry next tick */ }
+    }, 1500);
 
-    // Fallback: popup closed without message
-    const poll = setInterval(() => {
-      if (popup?.closed) {
-        clearInterval(poll);
-        window.removeEventListener("message", onMessage);
-        setIsLoading(false);
-        if (onConnected) {
-          onConnected();
-        } else {
-          window.location.reload();
-        }
-      }
-    }, 500);
+    // Safety timeout after 5 minutes
+    const timeout = setTimeout(() => {
+      clearInterval(poll);
+      setIsLoading(false);
+    }, 5 * 60 * 1000);
   };
 
   if (isConnected) {
     return (
-      <div className={`flex items-center gap-1.5 text-zinc-500 ${compact ? "text-xs" : "text-sm"}`}>
-        <CheckCircle className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />
-        Outlook connecté
+      <div className={`btn-connected-indicator${compact ? " btn-connected-indicator--compact" : ""}`}>
+        Connecté
       </div>
     );
   }
@@ -76,9 +67,8 @@ export default function ConnectOutlook({
       <button
         onClick={handleConnect}
         disabled={isLoading}
-        className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+        className="btn-connect-compact"
       >
-        {isLoading && <Loader2 className="w-3 h-3 animate-spin" />}
         {isLoading ? "Connexion..." : "Connecter Outlook"}
       </button>
     );
@@ -88,9 +78,8 @@ export default function ConnectOutlook({
     <button
       onClick={handleConnect}
       disabled={isLoading}
-      className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm font-medium py-2.5 px-6 rounded-lg transition-colors"
+      className="btn-connect"
     >
-      {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
       {isLoading ? "Connexion en cours..." : "Connecter Outlook"}
     </button>
   );

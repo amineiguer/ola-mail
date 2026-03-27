@@ -9,7 +9,12 @@ interface ConnectGmailProps {
   onConnected?: () => void;
 }
 
-export default function ConnectGmail({ compact = false, isConnected = false, ghlUserId, onConnected }: ConnectGmailProps) {
+export default function ConnectGmail({
+  compact = false,
+  isConnected = false,
+  ghlUserId,
+  onConnected,
+}: ConnectGmailProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleConnect = () => {
@@ -19,53 +24,34 @@ export default function ConnectGmail({ compact = false, isConnected = false, ghl
       ? `/api/auth/gmail?userId=${encodeURIComponent(ghlUserId)}`
       : "/api/auth/gmail";
 
-    const popup = window.open(
-      url,
-      "gmail-oauth",
-      "width=600,height=700,scrollbars=yes,resizable=yes"
-    );
+    // Open OAuth popup
+    window.open(url, "gmail-oauth", "width=600,height=700,scrollbars=yes,resizable=yes");
 
-    const finish = () => {
-      setIsLoading(false);
-      if (onConnected) onConnected();
-      else window.location.reload();
-    };
+    // Poll Supabase (via API) as the single source of truth.
+    // Works regardless of window.opener (Google COOP), localStorage restrictions, or popup state.
+    const poll = setInterval(async () => {
+      try {
+        const statusUrl = ghlUserId
+          ? `/api/auth/gmail?action=status&userId=${encodeURIComponent(ghlUserId)}`
+          : "/api/auth/gmail?action=status";
+        const res = await fetch(statusUrl);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.connected) {
+          clearInterval(poll);
+          clearTimeout(timeout);
+          setIsLoading(false);
+          if (onConnected) onConnected();
+          else window.location.reload();
+        }
+      } catch { /* ignore — will retry next tick */ }
+    }, 1500);
 
-    // Primary: localStorage event — works even when window.opener is null (Google COOP headers)
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "ola-oauth-connected") {
-        cleanup();
-        finish();
-      }
-    };
-
-    // Secondary: postMessage from popup
-    const onMessage = (e: MessageEvent) => {
-      if (e.data?.type === "GMAIL_CONNECTED" || e.data?.type === "OUTLOOK_CONNECTED") {
-        cleanup();
-        finish();
-      } else if (e.data?.type === "GMAIL_ERROR" || e.data?.type === "OUTLOOK_ERROR") {
-        cleanup();
-        setIsLoading(false);
-      }
-    };
-
-    // Fallback: detect popup closed without any event
-    const poll = setInterval(() => {
-      if (popup?.closed) {
-        cleanup();
-        finish();
-      }
-    }, 500);
-
-    const cleanup = () => {
+    // Safety timeout after 5 minutes
+    const timeout = setTimeout(() => {
       clearInterval(poll);
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("message", onMessage);
-    };
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("message", onMessage);
+      setIsLoading(false);
+    }, 5 * 60 * 1000);
   };
 
   if (isConnected) {
