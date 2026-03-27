@@ -33,8 +33,9 @@ export interface GmailEmail {
 export function getOAuthClient(): OAuth2Client {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri =
-    process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/api/auth/callback";
+  // Build redirect URI from NEXTAUTH_URL to avoid \n issues with GOOGLE_REDIRECT_URI env var
+  const baseUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\s/g, "").replace(/\/$/, "");
+  const redirectUri = `${baseUrl}/api/auth/callback`;
 
   if (!clientId || !clientSecret) {
     throw new Error(
