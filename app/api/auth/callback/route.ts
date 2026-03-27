@@ -7,36 +7,46 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const error = searchParams.get("error");
 
-  const baseUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\s/g, "").replace(/\/$/, "");
+  const baseUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000")
+    .replace(/\s/g, "")
+    .replace(/\/$/, "");
 
   if (error) {
-    const redirectUrl = new URL("/auth/callback", baseUrl);
-    redirectUrl.searchParams.set("error", error);
-    return NextResponse.redirect(redirectUrl.toString());
+    return NextResponse.redirect(`${baseUrl}/auth/callback?error=${encodeURIComponent(error)}`);
   }
 
   if (!code) {
-    const redirectUrl = new URL("/auth/callback", baseUrl);
-    redirectUrl.searchParams.set("error", "missing_code");
-    return NextResponse.redirect(redirectUrl.toString());
+    return NextResponse.redirect(`${baseUrl}/auth/callback?error=missing_code`);
   }
 
-  // Decode state: base64url JSON { userId, verifier } — or legacy "user_xxx" format
+  // Decode state: base64url JSON { userId, verifier, session }
   const state = searchParams.get("state");
   let ghlUserId: string | undefined;
   let codeVerifier: string | undefined;
+  let sessionId: string | undefined;
+
   if (state) {
     try {
       const parsed = JSON.parse(Buffer.from(state, "base64url").toString());
       ghlUserId = parsed.userId ?? undefined;
       codeVerifier = parsed.verifier ?? undefined;
+      sessionId = parsed.session ?? undefined;
     } catch {
-      // Legacy state format
+      // Legacy state format "user_xxx"
       if (state.startsWith("user_")) {
         ghlUserId = decodeURIComponent(state.slice(5));
       }
     }
   }
+
+  // Storage key: prefer GHL user ID, fall back to session ID from state, then from cookie
+  const storageKey =
+    ghlUserId ??
+    sessionId ??
+    request.cookies.get("ola_session")?.value ??
+    crypto.randomUUID(); // last-resort: create a new session
+
+  const effectiveSessionId = sessionId ?? request.cookies.get("ola_session")?.value ?? storageKey;
 
   try {
     const oauth2Client = getOAuthClient();
@@ -49,7 +59,7 @@ export async function GET(request: NextRequest) {
       throw new Error("Aucun token d'accès reçu");
     }
 
-    // Verify that the user granted the required scopes
+    // Verify scopes
     const grantedScopes = (tokens.scope ?? "").split(" ");
     const requiredScopes = [
       "https://www.googleapis.com/auth/gmail.readonly",
@@ -57,18 +67,17 @@ export async function GET(request: NextRequest) {
     ];
     const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
     if (missingScopes.length > 0) {
-      const redirectUrl = new URL("/auth/callback", baseUrl);
-      redirectUrl.searchParams.set("error", "insufficient_scope");
-      return NextResponse.redirect(redirectUrl.toString());
+      return NextResponse.redirect(`${baseUrl}/auth/callback?error=insufficient_scope`);
     }
 
-    // Get the email of the connected Google account
+    // Get connected email
     let googleEmail: string | undefined;
     try {
       const tokenInfo = await oauth2Client.getTokenInfo(tokens.access_token!);
       googleEmail = tokenInfo.email ?? undefined;
     } catch { /* non-critical */ }
 
+    // Save tokens to Supabase using storageKey (always uses Supabase on production)
     await saveTokens(
       {
         access_token: tokens.access_token,
@@ -78,18 +87,22 @@ export async function GET(request: NextRequest) {
         scope: tokens.scope ?? undefined,
         email: googleEmail,
       },
-      ghlUserId
+      storageKey
     );
 
-    const redirectUrl = new URL("/auth/callback", baseUrl);
-    redirectUrl.searchParams.set("success", "true");
-    const successResponse = NextResponse.redirect(redirectUrl.toString());
+    const successResponse = NextResponse.redirect(`${baseUrl}/auth/callback?success=true`);
+    // Persist session cookie so future requests can find the tokens
+    successResponse.cookies.set("ola_session", effectiveSessionId, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
     successResponse.cookies.delete("pkce_verifier");
     return successResponse;
   } catch (err) {
     console.error("Erreur lors de l'échange du code OAuth:", err);
-    const redirectUrl = new URL("/auth/callback", baseUrl);
-    redirectUrl.searchParams.set("error", "token_exchange_failed");
-    return NextResponse.redirect(redirectUrl.toString());
+    return NextResponse.redirect(`${baseUrl}/auth/callback?error=token_exchange_failed`);
   }
 }
