@@ -950,6 +950,12 @@ export default function DashboardPage() {
         </div>
 
         <div className="topbar-right">
+          {/* OLA sync status dot */}
+          <span
+            className={`sync-dot${isSyncing || isLoading ? " sync-dot--syncing" : isConnected || isOutlookConnected ? " sync-dot--ok" : " sync-dot--error"}`}
+            title={isSyncing || isLoading ? "Synchronisation en cours…" : isConnected || isOutlookConnected ? "Synchronisé avec OLA" : "Non connecté à OLA"}
+          />
+
           {/* Language toggle */}
           <button
             onClick={() => setLang((l) => {

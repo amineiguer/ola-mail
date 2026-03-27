@@ -1288,3 +1288,31 @@ a {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Sync status dot ─────────────────────────────────── */
+.sync-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9CA3AF;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.sync-dot--ok {
+  background: #22C55E;
+  box-shadow: 0 0 0 2px #dcfce7;
+}
+.sync-dot--syncing {
+  background: #F59E0B;
+  box-shadow: 0 0 0 2px #fef3c7;
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+.sync-dot--error {
+  background: #EF4444;
+  box-shadow: 0 0 0 2px #fee2e2;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
