@@ -8,7 +8,10 @@ export async function GET(
 ) {
   const emailId = params.id;
 
-  const ghlUserId = _req.headers.get("x-ghl-user-id") ?? undefined;
+  const ghlUserId =
+    _req.headers.get("x-ghl-user-id") ??
+    _req.cookies.get("ola_session")?.value ??
+    undefined;
   const tokens = await getTokens(ghlUserId);
   if (!tokens?.access_token) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
