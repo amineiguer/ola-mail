@@ -3,7 +3,10 @@ import { getLabels, getAuthenticatedClient } from "@/lib/gmail";
 import { getTokens } from "@/lib/storage";
 
 export async function GET(request: NextRequest) {
-  const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
+  const ghlUserId =
+    request.headers.get("x-ghl-user-id") ??
+    request.cookies.get("ola_session")?.value ??
+    undefined;
   const tokens = await getTokens(ghlUserId);
   if (!tokens?.access_token) {
     return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
