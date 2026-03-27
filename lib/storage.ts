@@ -135,7 +135,7 @@ export async function saveTokens(
   if (process.env.SUPABASE_URL) {
     const key = ghlUserId ?? "default";
     const { supabase } = await import("@/lib/supabase");
-    await supabase.from("gmail_google_tokens").upsert(
+    const { error } = await supabase.from("gmail_google_tokens").upsert(
       {
         ghl_user_id: key,
         google_access_token: tokens.access_token,
@@ -148,6 +148,7 @@ export async function saveTokens(
       },
       { onConflict: "ghl_user_id" }
     );
+    if (error) console.error("[saveTokens] Supabase upsert error:", error.message, error.details);
     return;
   }
   writeJsonFile(TOKENS_FILE, tokens);

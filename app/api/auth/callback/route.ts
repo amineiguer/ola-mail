@@ -58,15 +58,17 @@ export async function GET(request: NextRequest) {
       throw new Error("Aucun token d'accès reçu");
     }
 
-    // Verify scopes
-    const grantedScopes = (tokens.scope ?? "").split(" ");
-    const requiredScopes = [
-      "https://www.googleapis.com/auth/gmail.readonly",
-      "https://www.googleapis.com/auth/gmail.send",
-    ];
-    const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
-    if (missingScopes.length > 0) {
-      return NextResponse.redirect(`${baseUrl}/auth/callback?error=insufficient_scope`);
+    // Verify scopes — skip check if Google omits scope from token response
+    if (tokens.scope) {
+      const grantedScopes = tokens.scope.split(" ");
+      const requiredScopes = [
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.send",
+      ];
+      const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
+      if (missingScopes.length > 0) {
+        return NextResponse.redirect(`${baseUrl}/auth/callback?error=insufficient_scope`);
+      }
     }
 
     // Get connected email
