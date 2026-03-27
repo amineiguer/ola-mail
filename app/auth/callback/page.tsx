@@ -2,20 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Building2, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Suspense } from "react";
 
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading"
-  );
-  const [message, setMessage] = useState("Connexion à Gmail en cours...");
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [message, setMessage] = useState("Connexion en cours...");
 
   useEffect(() => {
     const success = searchParams.get("success");
     const error = searchParams.get("error");
+    const provider = searchParams.get("provider") ?? "gmail";
+    const msgType = provider === "outlook" ? "OUTLOOK_CONNECTED" : "GMAIL_CONNECTED";
+    const errType = provider === "outlook" ? "OUTLOOK_ERROR" : "GMAIL_ERROR";
+    const providerName = provider === "outlook" ? "Outlook" : "Gmail";
 
     if (error) {
       setStatus("error");
@@ -24,83 +25,74 @@ function CallbackContent() {
           ? "Code d'autorisation manquant. Veuillez réessayer."
           : error === "token_exchange_failed"
           ? "Échec de l'échange de token. Vérifiez vos credentials Google."
-          : "Accès refusé. Veuillez autoriser l'accès à Gmail pour continuer."
+          : error === "insufficient_scope"
+          ? "Permissions insuffisantes. Veuillez autoriser tous les accès demandés."
+          : "Accès refusé. Veuillez autoriser l'accès pour continuer."
       );
+      // Notify parent window of error (best-effort)
+      try { if (window.opener) window.opener.postMessage({ type: errType }, "*"); } catch { /* blocked */ }
+      setTimeout(() => { try { window.close(); } catch { /* ignore */ } }, 2000);
       return;
     }
 
     if (success === "true") {
       setStatus("success");
-      const provider = searchParams.get("provider") ?? "gmail";
-      const msgType = provider === "outlook" ? "OUTLOOK_CONNECTED" : "GMAIL_CONNECTED";
-      const providerName = provider === "outlook" ? "Outlook" : "Gmail";
-      // If opened as a popup, notify parent and close
-      if (window.opener) {
-        window.opener.postMessage({ type: msgType }, "*");
-        setTimeout(() => window.close(), 1000);
-        setMessage(`${providerName} connecté ! Cette fenêtre va se fermer...`);
-      } else {
-        setMessage(`${providerName} connecté avec succès ! Redirection vers le tableau de bord...`);
-        const timer = setTimeout(() => router.push("/dashboard"), 2000);
-        return () => clearTimeout(timer);
-      }
-    } else {
-      setStatus("error");
-      const provider = searchParams.get("provider") ?? "gmail";
-      const errType = provider === "outlook" ? "OUTLOOK_ERROR" : "GMAIL_ERROR";
-      if (window.opener) {
-        window.opener.postMessage({ type: errType }, "*");
-        setTimeout(() => window.close(), 2000);
-      }
-      setMessage("Réponse inattendue. Veuillez réessayer.");
+      setMessage(`${providerName} connecté ! Fermeture en cours...`);
+
+      // 1. Broadcast via localStorage — works even when window.opener is null (Google COOP)
+      try {
+        localStorage.setItem("ola-oauth-connected", String(Date.now()));
+        // Clean up after a moment so it doesn't linger
+        setTimeout(() => localStorage.removeItem("ola-oauth-connected"), 3000);
+      } catch { /* private browsing may block localStorage */ }
+
+      // 2. Also try postMessage for environments where opener is still available
+      try {
+        if (window.opener) window.opener.postMessage({ type: msgType }, "*");
+      } catch { /* COOP may block this */ }
+
+      // 3. Close the popup — ConnectGmail's poll will also catch this as fallback
+      setTimeout(() => {
+        try {
+          window.close();
+        } catch { /* ignore */ }
+        // If still open (direct navigation, not popup), redirect to dashboard
+        setTimeout(() => router.push("/dashboard"), 500);
+      }, 800);
+
       return;
     }
+
+    // Unexpected state
+    setStatus("error");
+    setMessage("Réponse inattendue. Veuillez réessayer.");
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-10 max-w-md w-full mx-4 text-center">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-xl font-bold text-slate-800">OLA</span>
+    <div className="auth-screen">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <span className="auth-logo-text">Boîte courriel</span>
         </div>
 
-        <div className="mb-6">
-          {status === "loading" && (
-            <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto" />
-          )}
-          {status === "success" && (
-            <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto" />
-          )}
-          {status === "error" && (
-            <XCircle className="w-16 h-16 text-red-500 mx-auto" />
-          )}
+        <div className="auth-icon-wrap">
+          {status === "loading" && <div className="auth-status-indicator">···</div>}
+          {status === "success" && <div className="auth-status-indicator auth-status-indicator--ok">✓</div>}
+          {status === "error"   && <div className="auth-status-indicator auth-status-indicator--err">!</div>}
         </div>
 
-        <h2 className="text-xl font-semibold text-slate-800 mb-3">
+        <h2 className="auth-title">
           {status === "loading" && "Connexion en cours..."}
           {status === "success" && "Connexion réussie !"}
-          {status === "error" && "Erreur de connexion"}
+          {status === "error"   && "Erreur de connexion"}
         </h2>
 
-        <p className="text-slate-500 text-sm leading-relaxed mb-6">{message}</p>
+        <p className="auth-message">{message}</p>
 
         {status === "error" && (
-          <button
-            onClick={() => router.push("/")}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
-          >
+          <button onClick={() => router.push("/")} className="auth-back-btn">
             Retour à l&apos;accueil
           </button>
-        )}
-
-        {status === "success" && (
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Redirection automatique...
-          </div>
         )}
       </div>
     </div>
@@ -110,10 +102,9 @@ function CallbackContent() {
 export default function AuthCallbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-10 max-w-md w-full mx-4 text-center">
-          <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-slate-500">Chargement...</p>
+      <div className="auth-screen">
+        <div className="auth-card">
+          <p className="auth-message">Chargement...</p>
         </div>
       </div>
     }>

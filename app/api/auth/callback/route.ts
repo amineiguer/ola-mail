@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const error = searchParams.get("error");
 
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\s/g, "").replace(/\/$/, "");
 
   if (error) {
     const redirectUrl = new URL("/auth/callback", baseUrl);
@@ -21,16 +21,45 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(redirectUrl.toString());
   }
 
-  // Extract GHL user ID from state param
+  // Decode state: base64url JSON { userId, verifier } — or legacy "user_xxx" format
   const state = searchParams.get("state");
-  const ghlUserId = state ? decodeURIComponent(state) : undefined;
+  let ghlUserId: string | undefined;
+  let codeVerifier: string | undefined;
+  if (state) {
+    try {
+      const parsed = JSON.parse(Buffer.from(state, "base64url").toString());
+      ghlUserId = parsed.userId ?? undefined;
+      codeVerifier = parsed.verifier ?? undefined;
+    } catch {
+      // Legacy state format
+      if (state.startsWith("user_")) {
+        ghlUserId = decodeURIComponent(state.slice(5));
+      }
+    }
+  }
 
   try {
     const oauth2Client = getOAuthClient();
-    const { tokens } = await oauth2Client.getToken(code);
+    const tokenResult = codeVerifier
+      ? await oauth2Client.getToken({ code: code!, codeVerifier })
+      : await oauth2Client.getToken(code!);
+    const { tokens } = tokenResult;
 
     if (!tokens.access_token) {
       throw new Error("Aucun token d'accès reçu");
+    }
+
+    // Verify that the user granted the required scopes
+    const grantedScopes = (tokens.scope ?? "").split(" ");
+    const requiredScopes = [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.send",
+    ];
+    const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
+    if (missingScopes.length > 0) {
+      const redirectUrl = new URL("/auth/callback", baseUrl);
+      redirectUrl.searchParams.set("error", "insufficient_scope");
+      return NextResponse.redirect(redirectUrl.toString());
     }
 
     // Get the email of the connected Google account
@@ -54,7 +83,9 @@ export async function GET(request: NextRequest) {
 
     const redirectUrl = new URL("/auth/callback", baseUrl);
     redirectUrl.searchParams.set("success", "true");
-    return NextResponse.redirect(redirectUrl.toString());
+    const successResponse = NextResponse.redirect(redirectUrl.toString());
+    successResponse.cookies.delete("pkce_verifier");
+    return successResponse;
   } catch (err) {
     console.error("Erreur lors de l'échange du code OAuth:", err);
     const redirectUrl = new URL("/auth/callback", baseUrl);
