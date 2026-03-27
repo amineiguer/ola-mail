@@ -6,10 +6,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string; attachmentId: string } }
 ) {
-  const ghlUserId =
-    _req.headers.get("x-ghl-user-id") ??
-    _req.cookies.get("ola_session")?.value ??
-    undefined;
+  const ghlUserId = _req.headers.get("x-ghl-user-id") ?? undefined;
   const tokens = await getTokens(ghlUserId);
   if (!tokens?.access_token) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });

@@ -3,14 +3,13 @@ import { getOAuthClient } from "@/lib/gmail";
 import { clearTokens, getTokens } from "@/lib/storage";
 import { CodeChallengeMethod } from "google-auth-library";
 
-/** Returns the storage key to use: GHL user ID if present, else the ola_session cookie. */
+/** Returns the storage key: GHL user ID from header or query param. */
 function getStorageKey(request: NextRequest, fallbackUserId?: string): string | undefined {
   return (
     fallbackUserId ??
     request.headers.get("x-ghl-user-id") ??
     request.nextUrl.searchParams.get("userId") ??
     request.nextUrl.searchParams.get("sessionId") ??
-    request.cookies.get("ola_session")?.value ??
     undefined
   );
 }

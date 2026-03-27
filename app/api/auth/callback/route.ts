@@ -39,14 +39,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Storage key: prefer GHL user ID, fall back to session ID from state, then from cookie
+  // Storage key: GHL user ID is canonical; fall back to session ID from state
   const storageKey =
     ghlUserId ??
     sessionId ??
-    request.cookies.get("ola_session")?.value ??
-    crypto.randomUUID(); // last-resort: create a new session
+    crypto.randomUUID(); // last-resort (should not happen in normal GHL flow)
 
-  const effectiveSessionId = sessionId ?? request.cookies.get("ola_session")?.value ?? storageKey;
+  const effectiveSessionId = sessionId ?? storageKey;
 
   try {
     const oauth2Client = getOAuthClient();

@@ -72,7 +72,6 @@ export async function GET(request: NextRequest) {
   const ghlUserId =
     request.headers.get("x-ghl-user-id") ??
     searchParams.get("userId") ??
-    request.cookies.get("ola_session")?.value ??
     undefined;
   const tokens = await getTokens(ghlUserId);
   if (!tokens || !tokens.access_token) {
