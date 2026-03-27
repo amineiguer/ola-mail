@@ -920,7 +920,7 @@ export default function DashboardPage() {
     <div className="connect-screen">
       <div className="connect-screen-header">
         <div className="connect-screen-logo">
-          <span className="connect-screen-logo-text">OLA Mail</span>
+          <span className="connect-screen-logo-text">Boîte courriel</span>
         </div>
         <p className="connect-screen-sub">Connectez votre boîte mail pour commencer</p>
       </div>
