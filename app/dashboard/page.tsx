@@ -181,9 +181,8 @@ export default function DashboardPage() {
   const [isDark, setIsDark] = useState(false);
   const [labelsExpanded, setLabelsExpanded] = useState(false);
   const [showAllLabels, setShowAllLabels] = useState(false);
-  const [immobilierExpanded, setImmobilierExpanded] = useState(true);
   const [mesEtiquettesExpanded, setMesEtiquettesExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState<"actions" | "inbox" | "all" | "visites" | "leads" | "contrats" | "immocontact" | "centris">("actions");
+  const [activeTab, setActiveTab] = useState<"inbox" | "all" | "visites">("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: "all" });
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -767,14 +766,6 @@ export default function DashboardPage() {
   const hasCategoryTag = (e: EmailItem) =>
     CATEGORY_TAGS.some((t) => emailMatchesTag(e, t)) || (e.analysis?.isContract ?? false);
 
-  // A "contact request" = someone asking to be added (isDemandeInfo) OR category=client
-  const isContactRequest = (e: EmailItem) =>
-    e.analysis?.extractedContact?.isDemandeInfo === true ||
-    e.aiTags?.category === "client" ||
-    emailMatchesTag(e, "client");
-
-  const isImmocontact = (e: EmailItem) => e.from.toLowerCase().includes("immocontact");
-  const isCentris = (e: EmailItem) => e.from.toLowerCase().includes("centris");
 
   // Filter logic
   // Build unique clients list from email senders, sorted by email count desc
@@ -821,24 +812,13 @@ export default function DashboardPage() {
     // Unread filter
     if (unreadOnly && e.isRead) return false;
     // Tab filter
-    if (activeTab === "actions") return e.aiTags?.needsReply === true;
     if (activeTab === "inbox") return !hasCategoryTag(e);
     if (activeTab === "visites") return emailMatchesTag(e, "visite");
-    if (activeTab === "leads") return isContactRequest(e);
-    if (activeTab === "contrats") return emailMatchesTag(e, "contrat") || (e.analysis?.isContract ?? false);
-    if (activeTab === "immocontact") return isImmocontact(e);
-    if (activeTab === "centris") return isCentris(e);
     // "all" — no extra filter
     return true;
   });
 
-  // Sort "À faire" by urgency: urgent first
-  const urgencyOrder = { urgent: 0, normal: 1, low: 2 };
-  const displayEmails = activeTab === "actions"
-    ? [...filteredEmails].sort((a, b) =>
-        (urgencyOrder[a.aiTags?.urgency ?? "normal"] ?? 1) - (urgencyOrder[b.aiTags?.urgency ?? "normal"] ?? 1)
-      )
-    : filteredEmails;
+  const displayEmails = filteredEmails;
 
   const handleMarkAllRead = async () => {
     const targets = displayEmails.filter((e) => !e.isRead);
@@ -1118,35 +1098,6 @@ export default function DashboardPage() {
             />
           </nav>
 
-          {/* Pre-made filters — collapsible */}
-          <div className="sidebar-section">
-            <button
-              className="sidebar-section-header"
-              onClick={() => setImmobilierExpanded(v => !v)}
-            >
-              <span>Filtres</span>
-              <span className={`sidebar-section-arrow${immobilierExpanded ? " sidebar-section-arrow--open" : ""}`}>›</span>
-            </button>
-            {immobilierExpanded && (
-              <nav className="sidebar-nav sidebar-nav--sub">
-                {([
-                  { key: "actions",     label: "À faire",    count: emails.filter(e => e.aiTags?.needsReply).length },
-                  { key: "immocontact", label: "Immocontact",count: emails.filter(e => isImmocontact(e)).length },
-                  { key: "centris",     label: "Centris",    count: emails.filter(e => isCentris(e)).length },
-                  { key: "leads",       label: "Contacts",   count: emails.filter(e => isContactRequest(e)).length },
-                  { key: "contrats",    label: "Contrats",   count: emails.filter(e => emailMatchesTag(e, "contrat") || (e.analysis?.isContract ?? false)).length },
-                ] as const).map(f => (
-                  <SidebarItem
-                    key={f.key}
-                    label={f.label}
-                    count={f.count || undefined}
-                    active={activeTab === f.key}
-                    onClick={() => { handleSidebarFilter({ type: "all" }); setActiveTab(f.key); setSelectedEmail(null); }}
-                  />
-                ))}
-              </nav>
-            )}
-          </div>
 
           {/* Gmail native labels — collapsible */}
           {userLabels.length > 0 && (
@@ -1280,18 +1231,11 @@ export default function DashboardPage() {
               />
             ) : displayEmails.length === 0 ? (
               <div className="email-list">
-                {activeTab === "actions" ? (
-                  <div className="empty-actions-state">
-                    <p className="empty-actions-title">Tout est réglé</p>
-                    <p className="empty-actions-sub">Aucun email n&apos;attend ta réponse.</p>
-                  </div>
-                ) : (
-                  <EmptyState
-                    labels={userLabels}
-                    onSelect={(id) => { handleSidebarFilter({ type: "gmail-label", value: id }); setActiveTab("all"); }}
-                    hasEmails={emails.length > 0}
-                  />
-                )}
+                <EmptyState
+                  labels={userLabels}
+                  onSelect={(id) => { handleSidebarFilter({ type: "gmail-label", value: id }); setActiveTab("all"); }}
+                  hasEmails={emails.length > 0}
+                />
               </div>
             ) : (
               <div className="email-list">
@@ -1300,7 +1244,7 @@ export default function DashboardPage() {
                   selectedId={undefined}
                   onSelect={(e) => { setSelectedEmail(e); if (!e.isRead) handleSetRead(e.id, true); }}
                   allTags={allTags}
-                  showAddContact={activeTab === "leads"}
+                  showAddContact={false}
                   onQuickAddContact={handleQuickAddContact}
                 />
               </div>
