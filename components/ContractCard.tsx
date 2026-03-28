@@ -612,6 +612,16 @@ export default function ContractCard({
                 >
                   <Reply className="w-4 h-4" />
                 </button>
+                {email.aiTags?.needsReply && (
+                  <button
+                    onClick={() => { onMarkReplied?.(email.id); }}
+                    className="ml-1 flex items-center gap-1 text-[11px] text-[#9aa0a6] hover:text-[#5f6368] dark:hover:text-[#e8eaed] hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] px-2 py-1 rounded-full transition-colors"
+                    title="Pas de réponse nécessaire — enseigne l'IA"
+                  >
+                    <X className="w-3 h-3" />
+                    Pas de réponse
+                  </button>
+                )}
                 <button
                   onClick={() => onSetRead?.(email.id, email.isRead ? false : true)}
                   className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] transition-colors text-[#5f6368] dark:text-[#9aa0a6]"
