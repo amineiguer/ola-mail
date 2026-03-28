@@ -294,6 +294,26 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Restore GHL fetch interceptor from sessionStorage on page refresh.
+  // This runs synchronously before initializeGmail so the x-ghl-user-id header
+  // is present on every API call from the very first request.
+  useEffect(() => {
+    const savedId = sessionStorage.getItem("ghl-user-id");
+    if (!savedId) return;
+    const orig = window.fetch.bind(window);
+    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input
+        : input instanceof URL ? input.href
+        : (input as Request).url;
+      if (url.startsWith("/api/")) {
+        const headers = new Headers(init?.headers);
+        headers.set("x-ghl-user-id", savedId);
+        return orig(input, { ...init, headers });
+      }
+      return orig(input, init);
+    };
+  }, []);
+
   // GHL SSO: request encrypted user context from parent GHL window (marketplace app)
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
@@ -532,10 +552,13 @@ export default function DashboardPage() {
     initializeGmail().finally(() => setCheckingAuth(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-initialize ONLY when GHL SSO fires for the first time
+  // Re-initialize when GHL SSO fires for the first time.
+  // Reset emailsLoadedRef so emails are fetched with the correct user ID header,
+  // even if the pre-SSO call already ran and got a "not connected" response.
   useEffect(() => {
     if (!ghlUser?.id || ghlSsoInitializedRef.current || intentionalDisconnectRef.current) return;
     ghlSsoInitializedRef.current = true;
+    emailsLoadedRef.current = false;
     initializeGmail();
   }, [ghlUser?.id, initializeGmail]);
 
