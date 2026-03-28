@@ -4,13 +4,27 @@ import { getEmailsCache } from "@/lib/storage";
 
 export async function POST(request: NextRequest) {
   try {
-    const { emailId } = await request.json();
+    const body = await request.json();
+    const { emailId, emailFrom, emailSubject, emailBody } = body;
 
-    const emails = await getEmailsCache();
-    const email = emails?.find((e) => e.id === emailId);
+    // Try to get email content from directly passed data first (works on Vercel)
+    // Fall back to cache (works locally)
+    let from = emailFrom;
+    let subject = emailSubject;
+    let content = emailBody;
 
-    if (!email) {
-      return NextResponse.json({ error: "Email introuvable" }, { status: 404 });
+    if (!content && emailId) {
+      const emails = await getEmailsCache();
+      const cached = emails?.find((e) => e.id === emailId);
+      if (cached) {
+        from = from ?? cached.from;
+        subject = subject ?? cached.subject;
+        content = content ?? cached.body?.substring(0, 3000) ?? cached.snippet;
+      }
+    }
+
+    if (!content && !subject) {
+      return NextResponse.json({ error: "Contenu de l'email introuvable" }, { status: 404 });
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -23,7 +37,7 @@ export async function POST(request: NextRequest) {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-5",
       max_tokens: 1024,
       messages: [
         {
@@ -31,9 +45,9 @@ export async function POST(request: NextRequest) {
           content: `Tu es un assistant pour un agent immobilier professionnel. Analyse le ton de cet email et rédige une réponse qui correspond exactement à son style de communication.
 
 Email reçu:
-- Expéditeur: ${email.from}
-- Sujet: ${email.subject}
-- Contenu: ${email.body?.substring(0, 2000) || email.snippet}
+- Expéditeur: ${from ?? "inconnu"}
+- Sujet: ${subject ?? "sans objet"}
+- Contenu: ${content ?? ""}
 
 Instructions:
 1. Détecte le ton (ex: "Formel et professionnel", "Informel et amical", "Urgent et direct", etc.)

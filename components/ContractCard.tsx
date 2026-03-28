@@ -4,13 +4,12 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { EmailItem, LinkedContact } from "@/app/dashboard/page";
 import { Tag as TagType } from "@/lib/tags-config";
 import { TagChip } from "@/components/EmailList";
-import QuickActionsPanel from "@/components/QuickActionsPanel";
 import {
-  Upload, CheckCircle, Loader2, Zap,
+  Upload, CheckCircle, Loader2, Zap, Sparkles,
   Paperclip, ExternalLink, Reply, Copy, Check, X, Plus,
   AlertTriangle, Mail, ArrowLeft, ChevronDown, ChevronUp,
   User, Phone, AtSign, Home as HomeIcon, UserPlus,
-  Star, MoreVertical, Smile, Forward, Printer, ReplyAll, SlidersHorizontal,
+  Star, MoreVertical, Smile, Forward, Printer, ReplyAll,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -122,7 +121,6 @@ export default function ContractCard({
 }: ContractCardProps) {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(true);
   const [isDrafting, setIsDrafting] = useState(false);
   const [draft, setDraft] = useState("");
   const [tone, setTone] = useState("");
@@ -186,7 +184,12 @@ export default function ContractCard({
       fetch("/api/emails/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailId: email.id }),
+        body: JSON.stringify({
+          emailId: email.id,
+          emailFrom: email.from,
+          emailSubject: email.subject,
+          emailBody: (email.body ?? email.snippet ?? "").substring(0, 3000),
+        }),
       })
         .then((r) => r.json())
         .then((data) => {
@@ -345,7 +348,12 @@ export default function ContractCard({
       const res = await fetch("/api/emails/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailId: email.id }),
+        body: JSON.stringify({
+          emailId: email.id,
+          emailFrom: email.from,
+          emailSubject: email.subject,
+          emailBody: (email.body ?? email.snippet ?? "").substring(0, 3000),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
@@ -637,6 +645,63 @@ export default function ContractCard({
           </div>
         </div>
       </div>
+
+      {/* ── Quick action icon bar ── */}
+      {!showCompose && (
+        <div className="quick-action-bar">
+          <button
+            className="quick-action-btn"
+            title="Scanner et analyser l'email"
+            onClick={async () => {
+              try {
+                const res = await fetch(`/api/emails/analyze?id=${email.id}`, { method: "POST" });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.aiTags && onTagsApplied) onTagsApplied(email.id, data.aiTags.suggestedTags ?? [], data.aiTags.category ?? null);
+                }
+              } catch { /* silent */ }
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Scanner</span>
+          </button>
+          <button
+            className="quick-action-btn"
+            title="Répondre avec l'IA"
+            onClick={handleDraft}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>Répondre IA</span>
+          </button>
+          {email.linkedContact ? (
+            <button
+              className="quick-action-btn quick-action-btn--linked"
+              title={`Lié à ${email.linkedContact.name}`}
+              onClick={() => window.open(`https://app.leadconnectorhq.com/contacts/${email.linkedContact!.id}`, "_blank")}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span className="truncate max-w-[100px]">{email.linkedContact.name}</span>
+            </button>
+          ) : (
+            <button
+              className="quick-action-btn"
+              title="Lier un contact OLA"
+              onClick={() => { /* TODO: contact search */ }}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Lier contact</span>
+            </button>
+          )}
+          <button
+            className="quick-action-btn"
+            title="Marquer comme lu / non lu"
+            onClick={() => onSetRead?.(email.id, !email.isRead)}
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>{email.isRead ? "Non lu" : "Lu"}</span>
+          </button>
+        </div>
+      )}
 
       {/* ── Body or Compose (full-height) ── */}
       {showCompose ? (
@@ -1141,37 +1206,10 @@ export default function ContractCard({
               Action requise
             </span>
           )}
-          {!showQuickActions && (
-            <button
-              onClick={() => setShowQuickActions(true)}
-              title="Afficher les actions rapides"
-              className="ml-auto w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] text-[#5f6368] dark:text-[#9aa0a6] transition-colors"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-            </button>
-          )}
         </div>
       )}
     </div>
 
-    {/* ── Quick Actions Panel ── */}
-    {showQuickActions && (
-      <div className="w-[260px] flex-shrink-0 border-l border-[#e0e0e0] dark:border-[#3c4043] bg-[#fafafa] dark:bg-[#1e1e1e] overflow-hidden">
-        <QuickActionsPanel
-          emailId={email.id}
-          emailFrom={email.from}
-          emailSubject={email.subject}
-          linkedContact={email.linkedContact}
-          onContactLinked={(id, c) => onContactLinked?.(id, c)}
-          currentTags={email.tags ?? []}
-          currentCategory={email.aiTags?.category ?? null}
-          onTagsApplied={(id, tags, cat) => onTagsApplied?.(id, tags, cat)}
-          onCompose={() => { setShowCompose(true); setComposeMode("new"); setComposeTo(""); setDraft(""); setTone(""); setDraftError(""); setSendState("idle"); }}
-          onClose={() => setShowQuickActions(false)}
-          ghlUserId={ghlUserId}
-        />
-      </div>
-    )}
     </div>
   );
 }

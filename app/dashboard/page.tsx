@@ -843,10 +843,9 @@ export default function DashboardPage() {
     }
     // Smart filter
     if (smartFilter && !isRealEstateEmail(e)) return false;
-    // Sidebar filter — action requise: real-person emails with lead/contrat/visite tags
+    // Sidebar filter — action requise: emails from humans expecting a reply (not app notifications)
     if (sidebarFilter.type === "action") {
-      if (!e.tags?.some(t => ["lead","contrat","visite"].includes(t))) return false;
-      if (isNotificationSender(e.from)) return false;
+      if (!e.aiTags?.needsReply) return false;
     }
     if (sidebarFilter.type === "tag") {
       if (!emailMatchesTag(e, sidebarFilter.value)) return false;
@@ -1144,7 +1143,7 @@ export default function DashboardPage() {
             />
             <SidebarItem
               label="Action requise"
-              count={emails.filter(e => e.tags?.some(t => ["lead","contrat","visite"].includes(t)) && !isNotificationSender(e.from)).length || undefined}
+              count={emails.filter(e => e.aiTags?.needsReply).length || undefined}
               active={sidebarFilter.type === "action"}
               onClick={() => { handleSidebarFilter({ type: "action" }); setActiveTab("all"); }}
             />
