@@ -5,8 +5,9 @@ import { getEmailsCache } from "@/lib/storage";
 export async function POST(request: NextRequest) {
   try {
     const { emailId } = await request.json();
+    const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
 
-    const emails = await getEmailsCache();
+    const emails = await getEmailsCache(ghlUserId);
     const email = emails?.find((e) => e.id === emailId);
 
     if (!email) {

@@ -10,12 +10,13 @@ export async function POST(
     const { id: emailId } = params;
     const body = await request.json();
     const { tagId } = body;
+    const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
 
     if (!tagId || typeof tagId !== "string") {
       return NextResponse.json({ error: "tagId est requis" }, { status: 400 });
     }
 
-    const emails = await getEmailsCache();
+    const emails = await getEmailsCache(ghlUserId);
     if (!emails) {
       return NextResponse.json({ error: "Cache introuvable" }, { status: 404 });
     }
@@ -35,7 +36,7 @@ export async function POST(
     const updatedTags = [...currentTags, tagId];
     const updatedEmails = [...emails];
     updatedEmails[emailIndex] = { ...email, tags: updatedTags };
-    await saveEmailsCache(updatedEmails);
+    await saveEmailsCache(updatedEmails, ghlUserId);
 
     // Auto-learn: manual tag = implicit correction signal
     try {
@@ -65,12 +66,13 @@ export async function DELETE(
   try {
     const { id: emailId } = params;
     const tagId = request.nextUrl.searchParams.get("tagId");
+    const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
 
     if (!tagId) {
       return NextResponse.json({ error: "tagId est requis" }, { status: 400 });
     }
 
-    const emails = await getEmailsCache();
+    const emails = await getEmailsCache(ghlUserId);
     if (!emails) {
       return NextResponse.json({ error: "Cache introuvable" }, { status: 404 });
     }
@@ -90,7 +92,7 @@ export async function DELETE(
 
     const updatedEmails = [...emails];
     updatedEmails[emailIndex] = { ...email, tags: updatedTags, aiTags: updatedAiTags };
-    await saveEmailsCache(updatedEmails);
+    await saveEmailsCache(updatedEmails, ghlUserId);
 
     return NextResponse.json({ tags: updatedTags, aiTags: updatedAiTags });
   } catch (error) {

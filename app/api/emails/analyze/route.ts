@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const cache = await getEmailsCache();
+    const cache = await getEmailsCache(ghlUserId);
     const cachedEmail = cache?.find((e) => e.id === emailId);
 
     if (cachedEmail?.analysis && cachedEmail?.aiTags) {
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
           ? { ...e, analysis, aiTags, body: emailData.body.substring(0, 8000), bodyHtml: emailData.bodyHtml }
           : e
       );
-      await saveEmailsCache(updatedCache);
+      await saveEmailsCache(updatedCache, ghlUserId);
     }
 
     return NextResponse.json({ analysis, aiTags });

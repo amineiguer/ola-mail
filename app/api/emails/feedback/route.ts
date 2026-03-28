@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "emailId requis" }, { status: 400 });
     }
 
-    const cache = await getEmailsCache();
+    const ghlUserId = request.headers.get("x-ghl-user-id") ?? undefined;
+    const cache = await getEmailsCache(ghlUserId);
     const email = cache?.find((e) => e.id === emailId);
 
     if (!email) {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
             : e.aiTags,
         };
       });
-      await saveEmailsCache(updated);
+      await saveEmailsCache(updated, ghlUserId);
     }
 
     return NextResponse.json({ ok: true });

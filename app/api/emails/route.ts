@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
   try {
     // Serve from cache unless refresh requested
     if (!refresh) {
-      const cached = await getEmailsCache();
+      const cached = await getEmailsCache(ghlUserId);
       if (cached && cached.length > 0) {
         const rules = await getRules();
         const withRules = cached.map((e) => applyRulesToEmail(e, rules));
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     const emails = await getEmails(authClient, 50, labelId, daysBack);
 
     // Merge with existing analysis / tags / aiTags data from cache
-    const existingCache = await getEmailsCache();
+    const existingCache = await getEmailsCache(ghlUserId);
     const existingMap = new Map(existingCache?.map((e) => [e.id, e]) ?? []);
 
     const mergedEmails: StoredEmail[] = emails.map((email) => {
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
     const emailsWithRules = mergedEmails.map((e) => applyRulesToEmail(e, rules));
 
     // Save to cache (without rule-derived transient tags — save base tags only)
-    await saveEmailsCache(mergedEmails);
+    await saveEmailsCache(mergedEmails, ghlUserId);
 
     return NextResponse.json({ emails: emailsWithRules });
   } catch (error) {

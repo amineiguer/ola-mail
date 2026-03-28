@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
-  const cache = await getEmailsCache();
+  const cache = await getEmailsCache(ghlUserId);
   if (!cache || cache.length === 0) {
     return NextResponse.json({ analyzed: 0 });
   }
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       }));
     }
 
-    await saveEmailsCache(updatedCache);
+    await saveEmailsCache(updatedCache, ghlUserId);
     // Return only the emails that changed so the client can patch state in-place
     const changedEmails = updatedCache.filter((e) =>
       pending.some((p) => p.id === e.id)

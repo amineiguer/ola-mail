@@ -188,39 +188,71 @@ export async function clearTokens(ghlUserId?: string): Promise<void> {
   if (fs.existsSync(TOKENS_FILE)) fs.unlinkSync(TOKENS_FILE);
 }
 
-// Email cache management
-export async function saveEmailsCache(emails: StoredEmail[]): Promise<void> {
+// Email cache management — Supabase (production) with file fallback (local dev)
+export async function saveEmailsCache(emails: StoredEmail[], ghlUserId?: string): Promise<void> {
+  if (process.env.SUPABASE_URL) {
+    const key = ghlUserId ?? "default";
+    const { supabase } = await import("@/lib/supabase");
+    await supabase.from("email_cache").upsert(
+      { ghl_user_id: key, emails: emails as unknown as Record<string, unknown>[], updated_at: new Date().toISOString() },
+      { onConflict: "ghl_user_id" }
+    );
+    return;
+  }
   writeJsonFile(EMAILS_FILE, emails);
 }
 
-export async function getEmailsCache(): Promise<StoredEmail[] | null> {
+export async function getEmailsCache(ghlUserId?: string): Promise<StoredEmail[] | null> {
+  if (process.env.SUPABASE_URL) {
+    const key = ghlUserId ?? "default";
+    const { supabase } = await import("@/lib/supabase");
+    const { data } = await supabase
+      .from("email_cache")
+      .select("emails")
+      .eq("ghl_user_id", key)
+      .single();
+    if (!data?.emails) return null;
+    return data.emails as unknown as StoredEmail[];
+  }
   return readJsonFile<StoredEmail[]>(EMAILS_FILE);
+}
+
+export async function clearEmailsCacheForUser(ghlUserId?: string): Promise<void> {
+  if (process.env.SUPABASE_URL) {
+    const key = ghlUserId ?? "default";
+    const { supabase } = await import("@/lib/supabase");
+    await supabase.from("email_cache").delete().eq("ghl_user_id", key);
+    return;
+  }
+  if (fs.existsSync(EMAILS_FILE)) fs.unlinkSync(EMAILS_FILE);
 }
 
 export async function updateEmailAnalysis(
   emailId: string,
-  analysis: StoredEmail["analysis"]
+  analysis: StoredEmail["analysis"],
+  ghlUserId?: string
 ): Promise<void> {
-  const emails = await getEmailsCache();
+  const emails = await getEmailsCache(ghlUserId);
   if (!emails) return;
 
   const updated = emails.map((e) =>
     e.id === emailId ? { ...e, analysis } : e
   );
-  await saveEmailsCache(updated);
+  await saveEmailsCache(updated, ghlUserId);
 }
 
 export async function updateEmailGhlUpload(
   emailId: string,
-  ghlUpload: StoredEmail["ghlUpload"]
+  ghlUpload: StoredEmail["ghlUpload"],
+  ghlUserId?: string
 ): Promise<void> {
-  const emails = await getEmailsCache();
+  const emails = await getEmailsCache(ghlUserId);
   if (!emails) return;
 
   const updated = emails.map((e) =>
     e.id === emailId ? { ...e, ghlUpload } : e
   );
-  await saveEmailsCache(updated);
+  await saveEmailsCache(updated, ghlUserId);
 }
 
 export async function clearEmailsCache(): Promise<void> {
@@ -250,20 +282,22 @@ export async function saveRules(rules: Rule[]): Promise<void> {
 // Email tags management
 export async function updateEmailTags(
   emailId: string,
-  tags: string[]
+  tags: string[],
+  ghlUserId?: string
 ): Promise<void> {
-  const emails = await getEmailsCache();
+  const emails = await getEmailsCache(ghlUserId);
   if (!emails) return;
-  await saveEmailsCache(emails.map((e) => (e.id === emailId ? { ...e, tags } : e)));
+  await saveEmailsCache(emails.map((e) => (e.id === emailId ? { ...e, tags } : e)), ghlUserId);
 }
 
 export async function updateEmailAiTags(
   emailId: string,
-  aiTags: StoredEmail["aiTags"]
+  aiTags: StoredEmail["aiTags"],
+  ghlUserId?: string
 ): Promise<void> {
-  const emails = await getEmailsCache();
+  const emails = await getEmailsCache(ghlUserId);
   if (!emails) return;
-  await saveEmailsCache(emails.map((e) => (e.id === emailId ? { ...e, aiTags } : e)));
+  await saveEmailsCache(emails.map((e) => (e.id === emailId ? { ...e, aiTags } : e)), ghlUserId);
 }
 
 // App settings management
@@ -347,9 +381,10 @@ export async function clearOutlookTokens(ghlUserId: string): Promise<void> {
 
 export async function updateEmailLinkedContact(
   emailId: string,
-  linkedContact: StoredEmail["linkedContact"] | null
+  linkedContact: StoredEmail["linkedContact"] | null,
+  ghlUserId?: string
 ): Promise<void> {
-  const emails = await getEmailsCache();
+  const emails = await getEmailsCache(ghlUserId);
   if (!emails) return;
   await saveEmailsCache(
     emails.map((e) => {
@@ -359,6 +394,7 @@ export async function updateEmailLinkedContact(
         return rest;
       }
       return { ...e, linkedContact };
-    })
+    }),
+    ghlUserId
   );
 }
