@@ -162,6 +162,25 @@ function emailMatchesTag(email: EmailItem, tagId: string): boolean {
     (email.aiTags?.suggestedTags?.includes(tagId) ?? false);
 }
 
+/** Returns true if the sender is an automated system / notification bot. */
+function isNotificationSender(from: string): boolean {
+  const f = from.toLowerCase();
+  return (
+    f.includes("noreply") ||
+    f.includes("no-reply") ||
+    f.includes("donotreply") ||
+    f.includes("do-not-reply") ||
+    f.includes("notifications@") ||
+    f.includes("notification@") ||
+    f.includes("notify@") ||
+    f.includes("automated@") ||
+    f.includes("mailer-daemon") ||
+    f.includes("postmaster@") ||
+    f.includes("bounce@") ||
+    f.includes("system@")
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [emails, setEmails] = useState<EmailItem[]>([]);
@@ -641,7 +660,16 @@ export default function DashboardPage() {
     const update = (e: EmailItem) =>
       e.id !== emailId ? e : { ...e, aiTags: e.aiTags ? { ...e.aiTags, needsReply: false } : e.aiTags };
     setEmails((prev) => prev.map(update));
-    setSelectedEmail((prev) => (prev ? update(prev) : null));
+    // Navigate to next email
+    const idx = displayEmails.findIndex((e) => e.id === emailId);
+    const next = displayEmails[idx + 1] ?? displayEmails[idx - 1] ?? null;
+    setSelectedEmail(next);
+    // Teach the AI this email doesn't need a reply
+    fetch("/api/emails/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emailId, category: null, tags: [], isContract: false, isDemandeInfo: false }),
+    }).catch(() => {});
   };
 
   const handleBodyLoaded = (
@@ -792,9 +820,10 @@ export default function DashboardPage() {
     }
     // Smart filter
     if (smartFilter && !isRealEstateEmail(e)) return false;
-    // Sidebar filter — action requise: lead, contrat, visite tags
+    // Sidebar filter — action requise: real-person emails with lead/contrat/visite tags
     if (sidebarFilter.type === "action") {
       if (!e.tags?.some(t => ["lead","contrat","visite"].includes(t))) return false;
+      if (isNotificationSender(e.from)) return false;
     }
     if (sidebarFilter.type === "tag") {
       if (!emailMatchesTag(e, sidebarFilter.value)) return false;
@@ -827,7 +856,7 @@ export default function DashboardPage() {
 
   const handleSent = (emailId: string) => {
     const idx = displayEmails.findIndex((e) => e.id === emailId);
-    const next = filteredEmails[idx + 1] ?? filteredEmails[idx - 1] ?? null;
+    const next = displayEmails[idx + 1] ?? displayEmails[idx - 1] ?? null;
     setSelectedEmail(next);
   };
 
@@ -1092,7 +1121,7 @@ export default function DashboardPage() {
             />
             <SidebarItem
               label="Action requise"
-              count={emails.filter(e => e.tags?.some(t => ["lead","contrat","visite"].includes(t))).length || undefined}
+              count={emails.filter(e => e.tags?.some(t => ["lead","contrat","visite"].includes(t)) && !isNotificationSender(e.from)).length || undefined}
               active={sidebarFilter.type === "action"}
               onClick={() => { handleSidebarFilter({ type: "action" }); setActiveTab("all"); }}
             />
