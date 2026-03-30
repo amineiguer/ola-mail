@@ -10,9 +10,11 @@ import {
   AlertTriangle, Mail, ArrowLeft, ChevronDown, ChevronUp,
   User, Phone, AtSign, Home as HomeIcon, UserPlus,
   Star, MoreVertical, Smile, Forward, Printer, ReplyAll,
+  TrendingUp, Calendar, StickyNote, FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import QuickActionsPanel from "@/components/QuickActionsPanel";
 
 interface ContractCardProps {
   email: EmailItem;
@@ -149,6 +151,7 @@ export default function ContractCard({
   const [composeTo, setComposeTo] = useState("");
   const [visitConfirmed, setVisitConfirmed] = useState(false);
   const [previewAttId, setPreviewAttId] = useState<string | null>(null);
+  const [quickPanelKey, setQuickPanelKey] = useState<"contact" | "opportunity" | "contract" | "calendar" | "note" | null>(null);
 
   const autoDraftedRef = useRef<string | null>(null);
 
@@ -161,6 +164,7 @@ export default function ContractCard({
     setComposeMode(null);
     setDraft("");
     setVisitConfirmed(false);
+    setQuickPanelKey(null);
     setSendState("idle");
     setShowQuotedText(false);
   }, [email.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -648,58 +652,95 @@ export default function ContractCard({
 
       {/* ── Quick action icon bar ── */}
       {!showCompose && (
-        <div className="quick-action-bar">
-          <button
-            className="quick-action-btn"
-            title="Scanner et analyser l'email"
-            onClick={async () => {
-              try {
-                const res = await fetch(`/api/emails/analyze?id=${email.id}`, { method: "POST" });
-                if (res.ok) {
-                  const data = await res.json();
-                  if (data.aiTags && onTagsApplied) onTagsApplied(email.id, data.aiTags.suggestedTags ?? [], data.aiTags.category ?? null);
-                }
-              } catch { /* silent */ }
-            }}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Scanner</span>
-          </button>
-          <button
-            className="quick-action-btn"
-            title="Répondre avec l'IA"
-            onClick={handleDraft}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Répondre IA</span>
-          </button>
-          {email.linkedContact ? (
+        <div className="flex flex-col border-b border-[#e0e0e0] dark:border-[#3c4043] flex-shrink-0">
+          <div className="flex items-center gap-0.5 px-4 py-1.5">
+            {/* AI Reply */}
             <button
-              className="quick-action-btn quick-action-btn--linked"
-              title={`Lié à ${email.linkedContact.name}`}
-              onClick={() => window.open(`https://app.leadconnectorhq.com/contacts/${email.linkedContact!.id}`, "_blank")}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-colors bg-[#1a73e8] hover:bg-[#1557b0] dark:bg-[#a8c7fa] dark:hover:bg-[#c2d9ff] text-white dark:text-[#062e6f]"
+              title="Répondre avec l'IA"
+              onClick={() => {
+                setShowCompose(true);
+                setComposeMode("reply");
+                setComposeTo(email.from.match(/<(.+?)>/)?.[1] ?? email.from);
+                setDraft(""); setTone(""); setDraftError(""); setSendState("idle");
+                handleDraft();
+              }}
             >
-              <User className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[100px]">{email.linkedContact.name}</span>
+              <Zap className="w-3.5 h-3.5" />
             </button>
-          ) : (
+
+            <div className="w-px h-4 bg-[#e0e0e0] dark:bg-[#3c4043] mx-1" />
+
+            {/* Add / link contact */}
             <button
-              className="quick-action-btn"
-              title="Lier un contact OLA"
-              onClick={() => { /* TODO: contact search */ }}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${quickPanelKey === "contact" ? "bg-[#e8f0fe] dark:bg-[#1a2744] text-[#1a73e8] dark:text-[#a8c7fa]" : "hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] text-[#5f6368] dark:text-[#9aa0a6]"}`}
+              title={email.linkedContact ? `Contact: ${email.linkedContact.name}` : "Ajouter un contact"}
+              onClick={() => setQuickPanelKey((k) => k === "contact" ? null : "contact")}
             >
-              <User className="w-3.5 h-3.5" />
-              <span>Lier contact</span>
+              {email.linkedContact ? (
+                <User className="w-3.5 h-3.5" />
+              ) : (
+                <UserPlus className="w-3.5 h-3.5" />
+              )}
             </button>
+
+            {/* Opportunity */}
+            <button
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${quickPanelKey === "opportunity" ? "bg-[#e8f0fe] dark:bg-[#1a2744] text-[#1a73e8] dark:text-[#a8c7fa]" : "hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] text-[#5f6368] dark:text-[#9aa0a6]"}`}
+              title="Ajouter / mettre à jour une opportunité"
+              onClick={() => setQuickPanelKey((k) => k === "opportunity" ? null : "opportunity")}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Contract */}
+            <button
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${quickPanelKey === "contract" ? "bg-[#e8f0fe] dark:bg-[#1a2744] text-[#1a73e8] dark:text-[#a8c7fa]" : "hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] text-[#5f6368] dark:text-[#9aa0a6]"}`}
+              title="Ajouter un contrat"
+              onClick={() => setQuickPanelKey((k) => k === "contract" ? null : "contract")}
+            >
+              <FileText className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Appointment */}
+            <button
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${quickPanelKey === "calendar" ? "bg-[#e8f0fe] dark:bg-[#1a2744] text-[#1a73e8] dark:text-[#a8c7fa]" : "hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] text-[#5f6368] dark:text-[#9aa0a6]"}`}
+              title="Ajouter un rendez-vous et des notes"
+              onClick={() => setQuickPanelKey((k) => k === "calendar" ? null : "calendar")}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Notes */}
+            <button
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${quickPanelKey === "note" ? "bg-[#e8f0fe] dark:bg-[#1a2744] text-[#1a73e8] dark:text-[#a8c7fa]" : "hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] text-[#5f6368] dark:text-[#9aa0a6]"}`}
+              title="Ajouter une note"
+              onClick={() => setQuickPanelKey((k) => k === "note" ? null : "note")}
+            >
+              <StickyNote className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Inline quick panel */}
+          {quickPanelKey && (
+            <div className="border-t border-[#f1f3f4] dark:border-[#3c4043] max-h-72 overflow-y-auto">
+              <QuickActionsPanel
+                key={`${email.id}-${quickPanelKey}`}
+                emailId={email.id}
+                emailFrom={email.from}
+                emailSubject={email.subject}
+                linkedContact={email.linkedContact}
+                onContactLinked={(id, contact) => { onContactLinked?.(id, contact); }}
+                currentTags={email.tags}
+                currentCategory={email.aiTags?.category ?? null}
+                onTagsApplied={onTagsApplied}
+                ghlUserId={ghlUserId}
+                openKey={quickPanelKey === "contact" ? "create-contact" : quickPanelKey === "contract" ? "opportunity" : quickPanelKey}
+                nameOverride={quickPanelKey === "contract" ? `Contrat — ${email.subject}` : undefined}
+                onClose={() => setQuickPanelKey(null)}
+              />
+            </div>
           )}
-          <button
-            className="quick-action-btn"
-            title="Marquer comme lu / non lu"
-            onClick={() => onSetRead?.(email.id, !email.isRead)}
-          >
-            <Mail className="w-3.5 h-3.5" />
-            <span>{email.isRead ? "Non lu" : "Lu"}</span>
-          </button>
         </div>
       )}
 

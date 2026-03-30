@@ -75,6 +75,7 @@ interface GmailLabel { id: string; name: string; type: string }
 type SidebarFilter =
   | { type: "all" }
   | { type: "action" }
+  | { type: "sent" }
   | { type: "tag"; value: string }
   | { type: "gmail-label"; value: string }
   | { type: "needs-reply" }
@@ -197,6 +198,8 @@ export default function DashboardPage() {
   const [activeProviderFilter, setActiveProviderFilter] = useState<"all" | "gmail" | "outlook">("all");
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [labels, setLabels] = useState<GmailLabel[]>([]);
+  const [sentEmails, setSentEmails] = useState<EmailItem[]>([]);
+  const [sentLoading, setSentLoading] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [labelsExpanded, setLabelsExpanded] = useState(false);
   const [showAllLabels, setShowAllLabels] = useState(false);
@@ -599,6 +602,14 @@ export default function DashboardPage() {
     setSidebarFilter(filter);
     setSelectedEmail(null);
     // No fetch — filteredEmails computes the view client-side from the already-loaded emails
+    if (filter.type === "sent") {
+      setSentLoading(true);
+      fetch("/api/emails?label=SENT&refresh=true")
+        .then((r) => r.json())
+        .then((d) => setSentEmails(d.emails ?? []))
+        .catch(() => {})
+        .finally(() => setSentLoading(false));
+    }
   };
 
   // ── Silent background polling (every 60s, checks last 2 days only) ─────
@@ -846,6 +857,7 @@ export default function DashboardPage() {
     // Sidebar filter — action requise: emails from humans expecting a reply (not app notifications)
     if (sidebarFilter.type === "action") {
       if (!e.aiTags?.needsReply) return false;
+      if (isNotificationSender(e.from)) return false;
     }
     if (sidebarFilter.type === "tag") {
       if (!emailMatchesTag(e, sidebarFilter.value)) return false;
@@ -869,7 +881,7 @@ export default function DashboardPage() {
     return true;
   });
 
-  const displayEmails = filteredEmails;
+  const displayEmails = sidebarFilter.type === "sent" ? sentEmails : filteredEmails;
 
   const handleMarkAllRead = async () => {
     const targets = displayEmails.filter((e) => !e.isRead);
@@ -929,6 +941,7 @@ export default function DashboardPage() {
   const sidebarTitle = (() => {
     if (sidebarFilter.type === "all") return "Boîte de réception";
     if (sidebarFilter.type === "action") return "Action requise";
+    if (sidebarFilter.type === "sent") return "Envoyés";
     if (sidebarFilter.type === "needs-reply") return "Action requise";
     if (sidebarFilter.type === "urgent-filter") return "Urgent";
     if (sidebarFilter.type === "tag") {
@@ -1146,6 +1159,11 @@ export default function DashboardPage() {
               count={emails.filter(e => e.aiTags?.needsReply).length || undefined}
               active={sidebarFilter.type === "action"}
               onClick={() => { handleSidebarFilter({ type: "action" }); setActiveTab("all"); }}
+            />
+            <SidebarItem
+              label="Envoyés"
+              active={sidebarFilter.type === "sent"}
+              onClick={() => { handleSidebarFilter({ type: "sent" }); setActiveTab("all"); setSelectedEmail(null); }}
             />
           </nav>
 

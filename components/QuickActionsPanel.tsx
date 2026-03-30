@@ -41,6 +41,8 @@ interface QuickActionsPanelProps {
   onCompose?: () => void;
   onClose?: () => void;
   ghlUserId?: string;
+  openKey?: ActionKey;
+  nameOverride?: string;
 }
 
 type ActionKey = "note" | "task" | "calendar" | "opportunity" | "message" | "create-contact";
@@ -48,9 +50,9 @@ type ActionKey = "note" | "task" | "calendar" | "opportunity" | "message" | "cre
 export default function QuickActionsPanel({
   emailId, emailFrom, emailSubject, linkedContact, onContactLinked,
   currentTags = [], currentCategory = null, onTagsApplied, onCompose, onClose,
-  ghlUserId,
+  ghlUserId, openKey, nameOverride,
 }: QuickActionsPanelProps) {
-  const [expanded, setExpanded] = useState<ActionKey | null>(null);
+  const [expanded, setExpanded] = useState<ActionKey | null>(openKey ?? null);
   const [contact, setContact] = useState<LinkedContact | null>(linkedContact ?? null);
 
   // Contact search
@@ -79,7 +81,7 @@ export default function QuickActionsPanel({
   const [calDate, setCalDate] = useState("");
   const [calTime, setCalTime] = useState("");
   const [calDesc, setCalDesc] = useState("");
-  const [oppName, setOppName] = useState(emailSubject);
+  const [oppName, setOppName] = useState(nameOverride ?? emailSubject);
   const [oppPipelineId, setOppPipelineId] = useState("");
   const [oppStageId, setOppStageId] = useState("");
   const [oppValue, setOppValue] = useState("");
@@ -159,6 +161,10 @@ export default function QuickActionsPanel({
     } catch { /**/ }
     finally { setPipelinesLoaded(true); }
   };
+
+  useEffect(() => {
+    if (openKey === "opportunity") loadPipelines();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (key: ActionKey) => {
     setExpanded((v) => v === key ? null : key);
